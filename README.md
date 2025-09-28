@@ -69,7 +69,7 @@ Add to your `wp-config.php`:
 define('WP_ENVIRONMENT_TYPE', 'development'); // or 'staging', 'production'
 
 // Or manually set API URL
-define('CWPK_API_URL', 'https://cribops.cloudbedrock.com'); // Development
+define('CWPK_API_URL', 'https://example.com'); // Development
 // define('CWPK_API_URL', 'https://cribops.com'); // Production
 
 // Optional: CDN URL for assets
@@ -78,16 +78,6 @@ define('CWPK_CDN_URL', 'https://cdn.cribops.com');
 // Optional: API timeout (default: 30 seconds)
 define('CWPK_API_TIMEOUT', 60);
 ```
-
-### API Endpoints
-
-The plugin automatically configures endpoints based on environment:
-
-| Environment | API URL |
-|------------|---------|
-| Development | `https://cribops.cloudbedrock.com` |
-| Staging | `https://staging.cribops.com` |
-| Production | `https://cribops.com` |
 
 ## Features
 
@@ -243,6 +233,10 @@ For issues or questions:
 GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
+
+### Version 1.0.6 (2024)
+- Updated README configuration examples
+- Improved documentation clarity
 
 ### Version 1.0.5 (2024)
 - Fixed broken logo path (moved logo_light.svg to correct location)
