@@ -278,13 +278,15 @@ if (!class_exists('CribOpsWPKit')) {
 <div class="cwpk-dashboard__header">
   <!-- Left side: Logo + Login form together -->
   <div class="cwpk-header-left" style="display: flex; align-items: center;">
-    <a href="https://cribops.com/pricing" target="_blank">
-      <img class="cwpk-dashboard__logo" src="<?php echo WPLK_DIR_URL; ?>assets/images/logo_light.svg" alt="CribOps WP-Kit" onerror="this.style.display='none'">
-    </a>
+    <div class="cwpk-logo-container">
+      <a href="https://cribops.com/pricing" target="_blank">
+        <img src="<?php echo WPLK_DIR_URL; ?>assets/images/logo_light.svg" alt="CribOps WP-Kit" style="max-height: 60px; width: auto;" onerror="this.style.display='none'">
+      </a>
+    </div>
 
-    <!-- Inline Login Area, now to the right of the logo -->
+    <!-- Inline Login Area -->
     <?php if ( get_transient('lk_logged_in') ) : ?>
-      <div class="cwpk-dashboard__login" style="margin-left:100px; align-items: center;border: 1px solid #f6f6f6;padding: 10px; border-radius: 5px; background: #f6f6f6;float: right;display: flex;">
+      <div class="cwpk-dashboard__login" style="margin-left:50px; align-items: center;border: 1px solid #ddd;padding: 8px 12px; border-radius: 4px; background: #f9f9f9;display: flex;">
         <span><?php esc_html_e('Logged in as: ******', 'cwpk'); ?></span>
         &nbsp;|&nbsp;
         <a href="<?php echo admin_url('admin-post.php?action=cwpk_logout'); ?>" class="cwpk-logout-link">
@@ -292,37 +294,27 @@ if (!class_exists('CribOpsWPKit')) {
         </a>
       </div>
     <?php else : ?>
-      <form class="cwpk-dashboard__login" method="post"
+      <form class="cwpk-login-inline" method="post"
             action="<?php echo admin_url('admin-post.php'); ?>"
-            style="                          margin-left:100px;
-                                            align-items: center;
-                                            border: 1px solid #f6f6f6;
-                                            padding: 10px;
-                                            border-radius: 5px;
-                                            background: #f6f6f6;
-                                            float: right;
-                                            display: flex;
-                                        ">
+            style="margin-left: 50px; display: flex; align-items: center; gap: 10px;">
         <input type="hidden" name="action" value="cwpk_login">
 
-        <!-- "Login:" label -->
-        <label style="font-weight: bold; margin-right: 8px;">
+        <label style="font-weight: 600; color: #333;">
           <?php esc_html_e('Login:', 'cwpk'); ?>
         </label>
 
         <input type="text"
                name="cwpk_username"
-               placeholder="<?php esc_attr_e('Username', 'cwpk'); ?>"
-               size="10"
-               style="margin-right: 5px; min-width:170px;">
+               placeholder="<?php esc_attr_e('Email', 'cwpk'); ?>"
+               style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 180px;">
 
         <input type="password"
                name="cwpk_password"
                placeholder="<?php esc_attr_e('Password', 'cwpk'); ?>"
-               size="10"
-               style="margin-right: 5px; min-width:170px;">
+               style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 140px;">
 
-        <input type="submit" value="<?php esc_attr_e('Login', 'cwpk'); ?>">
+        <input type="submit" value="<?php esc_attr_e('Login', 'cwpk'); ?>"
+               style="padding: 6px 16px; background: #2271b1; color: white; border: none; border-radius: 4px; cursor: pointer;">
       </form>
     <?php endif; ?>
   </div>
