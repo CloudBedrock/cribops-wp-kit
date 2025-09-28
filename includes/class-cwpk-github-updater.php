@@ -16,10 +16,22 @@ class CWPKGitHubUpdater {
     private $plugin_basename;
     private $github_data;
 
+    private static $instance = null;
+
+    /**
+     * Get singleton instance
+     */
+    public static function get_instance() {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+
     /**
      * Initialize the GitHub updater
      */
-    public function __construct() {
+    private function __construct() {
         // Get the main plugin file path correctly
         $plugin_file = dirname(dirname(__FILE__)) . '/cribops-wp-kit.php';
 
@@ -58,9 +70,21 @@ class CWPKGitHubUpdater {
             return $transient;
         }
 
+        // Remove any existing update info for our plugin first
+        if (isset($transient->response[$this->plugin_basename])) {
+            unset($transient->response[$this->plugin_basename]);
+        }
+
         $github_data = $this->get_github_release();
 
-        if ($github_data && version_compare($this->current_version, str_replace('v', '', $github_data->tag_name), '<')) {
+        if (!$github_data) {
+            return $transient;
+        }
+
+        $github_version = str_replace('v', '', $github_data->tag_name);
+
+        // Only add update if GitHub version is actually newer
+        if (version_compare($this->current_version, $github_version, '<')) {
             $plugin_data = array(
                 'slug' => $this->plugin_slug,
                 'plugin' => $this->plugin_basename,
@@ -299,9 +323,9 @@ class CWPKGitHubUpdater {
     }
 }
 
-// Initialize the updater
+// Initialize the updater (singleton pattern)
 add_action('init', function() {
     if (is_admin()) {
-        new CWPKGitHubUpdater();
+        CWPKGitHubUpdater::get_instance();
     }
 });

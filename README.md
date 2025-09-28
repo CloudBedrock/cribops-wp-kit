@@ -234,6 +234,12 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.15 (2024)
+- Fixed persistent update notification issue
+- Implemented singleton pattern for GitHub updater
+- Clear old update info before checking for new updates
+- Prevent duplicate update notifications when already on latest version
+
 ### Version 1.0.14 (2024)
 - Final test release to verify complete update functionality
 - Added FS_METHOD direct filesystem access
