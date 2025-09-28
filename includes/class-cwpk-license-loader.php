@@ -835,7 +835,7 @@ class CWPKLicenseKeyAutoloader {
                 update_option( 'acf_pro_license', base64_encode( serialize( $license_data ) ) );
             }
         }
-        wp_redirect( admin_url( 'admin.php?page=wplk&tab=license&settings-updated=true' ) );
+        wp_redirect( admin_url( 'admin.php?page=cwpk&tab=license&settings-updated=true' ) );
         exit;
     }
 

@@ -868,7 +868,7 @@ class CWPKInstaller {
             ?>
             <div class="wrap">
                 <h1>LaunchKit Packages</h1>
-                <div class="notice notice-warning"><p>Sorry, please <a href="<?php echo admin_url('admin.php?page=wplk&tab=installer'); ?>">log in with proper credentials</a> to view available packages.</p></div>
+                <div class="notice notice-warning"><p>Sorry, please <a href="<?php echo admin_url('admin.php?page=cwpk&tab=installer'); ?>">log in with proper credentials</a> to view available packages.</p></div>
             </div>
             <?php
             return;

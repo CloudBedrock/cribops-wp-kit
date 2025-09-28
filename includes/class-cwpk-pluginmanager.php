@@ -459,7 +459,7 @@ class CWPKPluginManager {
         jQuery(document).ready(function($){
             var addNewBtn = $('.wrap .page-title-action').first();
             if ( addNewBtn.length ) {
-                var addLaunchKitLink = $('<a class="page-title-action" href="<?php echo admin_url("admin.php?page=wplk"); ?>">Add Software Bundle Plugins</a>');
+                var addLaunchKitLink = $('<a class="page-title-action" href="<?php echo admin_url("admin.php?page=cwpk"); ?>">Add Software Bundle Plugins</a>');
                 addNewBtn.after(addLaunchKitLink);
             }
         });

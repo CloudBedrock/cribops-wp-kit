@@ -197,7 +197,7 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 
     public function launchkit_add_delete_inactive_link($views) {
         if (get_current_screen()->id !== 'plugin-install') {
-            $delete_url = admin_url('admin.php?page=wplk&tab=deleter');
+            $delete_url = admin_url('admin.php?page=cwpk&tab=deleter');
             $views['delete_inactive'] = '<a href="' . esc_url($delete_url) . '" style="color: red;">' . __('Delete Inactive Plugins', 'lk') . '</a>';
         }
         return $views;

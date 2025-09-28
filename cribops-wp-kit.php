@@ -180,7 +180,7 @@ if (!class_exists('CribOpsWPKit')) {
             );
             add_settings_field(
                 'cwpk_checkbox_field_004',
-                esc_html__('Hide LaunchKit from Admin Menu (Whitelabel For Client Sites)', 'cwpk') . '<p class="description">' . esc_html__('For Agency Owners With Client sites. Use "page=wplk" in the URL to access it.', 'cwpk') . '</p>',
+                esc_html__('Hide LaunchKit from Admin Menu (Whitelabel For Client Sites)', 'cwpk') . '<p class="description">' . esc_html__('For Agency Owners With Client sites. Use "page=cwpk" in the URL to access it.', 'cwpk') . '</p>',
                 array($this, 'cwpk_checkbox_field_004_render'),
                 'cwpk_options_page',
                 'cwpk_options_section_base'
@@ -341,10 +341,10 @@ if (!class_exists('CribOpsWPKit')) {
                 ?>
 
                 <nav class="nav-tab-wrapper">
-                    <a href="?page=wplk&tab=installer" class="nav-tab <?php if ($tab === 'installer'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Installer', 'cwpk'); ?></a>
-                    <a href="?page=wplk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License Manager', 'cwpk'); ?></a>
-                    <a href="?page=wplk&tab=settings" class="nav-tab <?php if ($tab === 'settings'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Settings', 'cwpk'); ?></a>
-                    <a href="?page=wplk&tab=featured" class="nav-tab <?php if ($tab === 'featured'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Other Tools', 'cwpk'); ?></a>
+                    <a href="?page=cwpk&tab=installer" class="nav-tab <?php if ($tab === 'installer'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Installer', 'cwpk'); ?></a>
+                    <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License Manager', 'cwpk'); ?></a>
+                    <a href="?page=cwpk&tab=settings" class="nav-tab <?php if ($tab === 'settings'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Settings', 'cwpk'); ?></a>
+                    <a href="?page=cwpk&tab=featured" class="nav-tab <?php if ($tab === 'featured'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Other Tools', 'cwpk'); ?></a>
 
 </nav>
 
@@ -453,13 +453,13 @@ if (!class_exists('CribOpsWPKit')) {
                                     <h1><?php esc_html_e('Other Tools', 'cwpk'); ?></h1>
                                     <p>For Launching & Managing Your Site</p>
                                     <nav class="nav-tab-wrapper-more">
-                                        <a href="?page=wplk&tab=deleter" class="nav-tab <?php if ($tab === 'deleter'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Deleter', 'cwpk'); ?></a><span class="nav-description">Delete any or all plugins instantly.</span>
-                                        <a href="?page=wplk&tab=manager" class="nav-tab <?php if ($tab === 'manager'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Recipe Manager', 'cwpk'); ?></a><span class="nav-description">Create & manage plugin recipes.</span>
+                                        <a href="?page=cwpk&tab=deleter" class="nav-tab <?php if ($tab === 'deleter'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Deleter', 'cwpk'); ?></a><span class="nav-description">Delete any or all plugins instantly.</span>
+                                        <a href="?page=cwpk&tab=manager" class="nav-tab <?php if ($tab === 'manager'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Recipe Manager', 'cwpk'); ?></a><span class="nav-description">Create & manage plugin recipes.</span>
                                         <?php $logged_in = get_transient('lk_logged_in'); ?>
                                         <?php if ($logged_in) : ?>
-                                        <a href="?page=wplk&tab=account" class="nav-tab <?php if ($tab === 'account'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Account', 'cwpk'); ?></a><span class="nav-description">Create your WPLaunchify access account.</span>
-                                        <a href="?page=wplk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License', 'cwpk'); ?></a><span class="nav-description">Manage software licenses.</span>
-                                        <a href="?page=wplk&tab=packages" class="nav-tab <?php if ($tab === 'packages'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Packages', 'cwpk'); ?></a><span class="nav-description">Create or import full site templates.</span>
+                                        <a href="?page=cwpk&tab=account" class="nav-tab <?php if ($tab === 'account'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Account', 'cwpk'); ?></a><span class="nav-description">Create your WPLaunchify access account.</span>
+                                        <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License', 'cwpk'); ?></a><span class="nav-description">Manage software licenses.</span>
+                                        <a href="?page=cwpk&tab=packages" class="nav-tab <?php if ($tab === 'packages'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Packages', 'cwpk'); ?></a><span class="nav-description">Create or import full site templates.</span>
                                         <a href="?page=launchkit-debug" class="nav-tab <?php if ($tab === 'debug'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Debug', 'cwpk'); ?></a><span class="nav-description">Debug LaunchKit Software Bundle</span>
                                         <?php endif; ?>
                                     </nav>
@@ -508,7 +508,7 @@ if (!class_exists('CribOpsWPKit')) {
 
                 if (is_wp_error($response)) {
                     set_transient('lk_logged_in', false, 12 * HOUR_IN_SECONDS);
-                    wp_redirect(admin_url('admin.php?page=wplk&login_error=connection'));
+                    wp_redirect(admin_url('admin.php?page=cwpk&login_error=connection'));
                     exit;
                 }
 
@@ -521,11 +521,11 @@ if (!class_exists('CribOpsWPKit')) {
                     set_transient('lk_user_data', $user_data, 12 * HOUR_IN_SECONDS);
                 } else {
                     set_transient('lk_logged_in', false, 12 * HOUR_IN_SECONDS);
-                    wp_redirect(admin_url('admin.php?page=wplk&login_error=invalid'));
+                    wp_redirect(admin_url('admin.php?page=cwpk&login_error=invalid'));
                     exit;
                 }
             }
-            wp_redirect(admin_url('admin.php?page=wplk'));
+            wp_redirect(admin_url('admin.php?page=cwpk'));
             exit;
         }
 
@@ -533,7 +533,7 @@ if (!class_exists('CribOpsWPKit')) {
             delete_transient('lk_logged_in');
             delete_transient('lk_username');
             delete_transient('lk_user_data');
-            wp_redirect(admin_url('admin.php?page=wplk'));
+            wp_redirect(admin_url('admin.php?page=cwpk'));
             exit;
         }
 
