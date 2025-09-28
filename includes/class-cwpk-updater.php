@@ -79,7 +79,7 @@ class CWPKUpdater {
      */
     private function get_plugin_icon_url() {
         // Replace with the actual path to your icon within the assets/images folder
-        return $this->plugin_dir_url . 'assets/images/launchkit-logo.svg';
+        return $this->plugin_dir_url . 'assets/images/logo_light.svg';
     }
     
     /**

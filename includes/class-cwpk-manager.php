@@ -82,7 +82,7 @@ class CWPKManager {
 	// Render the plugin's admin page
 	public function launchkit_manager_page() {
 ?>
-<h1><?php _e('LaunchKit Manager', 'launchkit-manager'); ?></h1>
+<h1><?php _e('CribOps WP-Kit Manager', 'launchkit-manager'); ?></h1>
 <div class="wrap">
 	<div id="lk-notification" class="notice" style="display: none;"></div>
 	<div id="launchkit-manager-container">

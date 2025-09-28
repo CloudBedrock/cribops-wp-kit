@@ -50,8 +50,8 @@ class CWPKInstaller {
 
         add_submenu_page(
             $parent_slug,
-            __('LaunchKit Installer', 'launchkit-installer'),
-            __('LaunchKit Installer', 'launchkit-installer'),
+            __('CribOps WP-Kit Installer', 'launchkit-installer'),
+            __('CribOps WP-Kit Installer', 'launchkit-installer'),
             $capability,
             $page_slug,
             array($this, 'lk_get_meta_plugin_installer_page')
@@ -91,8 +91,8 @@ class CWPKInstaller {
 
         add_submenu_page(
             $parent_slug,
-            __('LaunchKit Packages', 'launchkit-packages'),
-            __('LaunchKit Packages', 'launchkit-packages'),
+            __('CribOps WP-Kit Packages', 'launchkit-packages'),
+            __('CribOps WP-Kit Packages', 'launchkit-packages'),
             $capability,
             $page_slug,
             array($this, 'get_prime_page')
@@ -867,7 +867,7 @@ class CWPKInstaller {
         if (!$user_data || empty($user_data['can_access_launchkit'])) {
             ?>
             <div class="wrap">
-                <h1>LaunchKit Packages</h1>
+                <h1>CribOps WP-Kit Packages</h1>
                 <div class="notice notice-warning"><p>Sorry, please <a href="<?php echo admin_url('admin.php?page=cwpk&tab=installer'); ?>">log in with proper credentials</a> to view available packages.</p></div>
             </div>
             <?php

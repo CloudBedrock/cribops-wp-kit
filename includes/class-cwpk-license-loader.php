@@ -637,8 +637,8 @@ class CWPKLicenseKeyAutoloader {
         $capability  = 'manage_options';
         add_submenu_page(
             $parent_slug,
-            __( 'LaunchKit License', 'launchkit-license' ),
-            __( 'LaunchKit License', 'launchkit-license' ),
+            __( 'CribOps WP-Kit License', 'launchkit-license' ),
+            __( 'CribOps WP-Kit License', 'launchkit-license' ),
             $capability,
             $page_slug,
             array( $this, 'license_key_autoloader_page' )

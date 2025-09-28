@@ -143,8 +143,8 @@ if (!class_exists('CribOpsWPKit')) {
             $parent_slug = 'cwpk';
             $capability = 'manage_options';
             add_menu_page(
-                'LaunchKit',
-                'LaunchKit',
+                'CribOps WP-Kit',
+                'CribOps WP-Kit',
                 $capability,
                 $parent_slug,
                 array($this, 'cwpk_options_page'),
@@ -180,7 +180,7 @@ if (!class_exists('CribOpsWPKit')) {
             );
             add_settings_field(
                 'cwpk_checkbox_field_004',
-                esc_html__('Hide LaunchKit from Admin Menu (Whitelabel For Client Sites)', 'cwpk') . '<p class="description">' . esc_html__('For Agency Owners With Client sites. Use "page=cwpk" in the URL to access it.', 'cwpk') . '</p>',
+                esc_html__('Hide CribOps WP-Kit from Admin Menu (Whitelabel For Client Sites)', 'cwpk') . '<p class="description">' . esc_html__('For Agency Owners With Client sites. Use "page=cwpk" in the URL to access it.', 'cwpk') . '</p>',
                 array($this, 'cwpk_checkbox_field_004_render'),
                 'cwpk_options_page',
                 'cwpk_options_section_base'
@@ -278,7 +278,7 @@ if (!class_exists('CribOpsWPKit')) {
   <!-- Left side: Logo + Login form together -->
   <div class="cwpk-header-left" style="display: flex; align-items: center;">
     <a href="https://wplaunchify.com/#pricing" target="_blank">
-      <img class="cwpk-dashboard__logo" src="<?php echo WPLK_DIR_URL; ?>assets/images/launchkit-logo.svg">
+      <img class="cwpk-dashboard__logo" src="<?php echo WPLK_DIR_URL; ?>assets/images/logo_light.svg">
     </a>
 
     <!-- Inline Login Area, now to the right of the logo -->
@@ -460,7 +460,7 @@ if (!class_exists('CribOpsWPKit')) {
                                         <a href="?page=cwpk&tab=account" class="nav-tab <?php if ($tab === 'account'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Account', 'cwpk'); ?></a><span class="nav-description">Create your WPLaunchify access account.</span>
                                         <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License', 'cwpk'); ?></a><span class="nav-description">Manage software licenses.</span>
                                         <a href="?page=cwpk&tab=packages" class="nav-tab <?php if ($tab === 'packages'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Packages', 'cwpk'); ?></a><span class="nav-description">Create or import full site templates.</span>
-                                        <a href="?page=launchkit-debug" class="nav-tab <?php if ($tab === 'debug'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Debug', 'cwpk'); ?></a><span class="nav-description">Debug LaunchKit Software Bundle</span>
+                                        <a href="?page=launchkit-debug" class="nav-tab <?php if ($tab === 'debug'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Debug', 'cwpk'); ?></a><span class="nav-description">Debug CribOps WP-Kit Software Bundle</span>
                                         <?php endif; ?>
                                     </nav>
                                 </div>

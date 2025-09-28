@@ -1,6 +1,6 @@
 <?php
 /**
- * LaunchKit Plugin Manager
+ * CribOps WP-Kit Plugin Manager
  *
  * Integrates bundled plugin updates from the "launchkit-updates" folder with WordPress's update flow.
  * Version: 2.0.2
@@ -84,7 +84,7 @@ class CWPKPluginManager {
      */
     public function admin_notice_no_access() {
         echo '<div class="notice notice-error"><p>';
-        echo 'LaunchKit Plugin Manager is disabled. Please log in to WPLaunchify with a valid subscription to use these features.';
+        echo 'CribOps WP-Kit Plugin Manager is disabled. Please log in with a valid subscription to use these features.';
         echo '</p></div>';
     }
 
@@ -306,7 +306,7 @@ class CWPKPluginManager {
         if ( is_dir( $plugin_dir ) ) {
             $this->recursive_delete( $plugin_dir );
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log("LaunchKit Update: Deleted existing plugin directory: " . $plugin_dir);
+                error_log("CribOps WP-Kit Update: Deleted existing plugin directory: " . $plugin_dir);
             }
         }
         require_once( ABSPATH . 'wp-admin/includes/file.php' );
@@ -322,18 +322,18 @@ class CWPKPluginManager {
         $result = unzip_file( $package_file, WP_PLUGIN_DIR );
         if ( is_wp_error( $result ) ) {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log("LaunchKit Update Error: unzip_file failed for package $package_file with error: " . $result->get_error_message());
+                error_log("CribOps WP-Kit Update Error: unzip_file failed for package $package_file with error: " . $result->get_error_message());
             }
             wp_send_json_error( $result->get_error_message() );
         } else {
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log("LaunchKit Update: unzip_file succeeded for package $package_file.");
+                error_log("CribOps WP-Kit Update: unzip_file succeeded for package $package_file.");
             }
         }
         if ( $was_active ) {
             activate_plugin( $plugin_file );
             if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-                error_log("LaunchKit Update: Plugin reactivated: " . $plugin_file);
+                error_log("CribOps WP-Kit Update: Plugin reactivated: " . $plugin_file);
             }
         }
         wp_send_json_success( 'Plugin updated successfully' );
@@ -367,7 +367,7 @@ class CWPKPluginManager {
     public function add_debug_page() {
         add_submenu_page(
             'cwpk',
-            'LaunchKit Debug',
+            'CribOps WP-Kit Debug',
             'Debug',
             'manage_options',
             'launchkit-debug',

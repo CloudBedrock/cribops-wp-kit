@@ -23,8 +23,8 @@ class CWPKDeleter {
 
         add_submenu_page(
             $parent_slug,
-            __('LaunchKit Deleter', 'launchkit-deleter'),
-            __('LaunchKit Deleter', 'launchkit-deleter'),
+            __('CribOps WP-Kit Deleter', 'launchkit-deleter'),
+            __('CribOps WP-Kit Deleter', 'launchkit-deleter'),
             $capability,
             $page_slug,
             array($this, 'launchkit_deleter_page')
@@ -62,7 +62,7 @@ class CWPKDeleter {
         }
 
         ?>
-        <h1><?php _e('LaunchKit Deleter', 'lk'); ?></h1>
+        <h1><?php _e('CribOps WP-Kit Deleter', 'lk'); ?></h1>
         <div class="wrap">
             <button id="launchkit-cleanup-button" class="button button-secondary"><?php _e('Cleanup All Inactive Plugins', 'lk'); ?></button>
             <div id="launchkit-progress"></div>
