@@ -1,0 +1,93 @@
+name: Create Release and Zip
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # Ensure the GITHUB_TOKEN has write permissions
+
+jobs:
+  create_release:
+    name: Create Release and Zip
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Fetch tags
+      run: git fetch --tags --force
+
+    - name: Get version from tag
+      id: version
+      run: |
+        # Get the version from the pushed tag
+        NEW_VERSION=${GITHUB_REF#refs/tags/}
+        echo "Version from tag: $NEW_VERSION"
+        echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+    - name: Validate tag format
+      run: |
+        if [[ ! "${{ env.NEW_VERSION }}" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+          echo "Invalid tag format: ${{ env.NEW_VERSION }}"
+          echo "Expected format: v1.2.3 or v1.2"
+          exit 1
+        fi
+        echo "Tag format is valid: ${{ env.NEW_VERSION }}"
+
+    - name: Create zip of entire project
+      run: |
+        zip -r cribops-wp-kit.zip .
+        echo "ZIP created for version ${{ env.NEW_VERSION }}"
+
+    - name: Check if the release already exists and get the upload URL
+      id: check_release
+      run: |
+        release_info=$(curl -s -H "Authorization: token ${{ secrets.GH_PAT }}" \
+          https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.NEW_VERSION }})
+        RELEASE_ID=$(echo "$release_info" | jq -r '.id')
+        UPLOAD_URL=$(echo "$release_info" | jq -r '.upload_url' | sed 's/{?name,label}//')
+
+        if [ "$RELEASE_ID" == "null" ]; then
+          echo "No release found for tag ${{ env.NEW_VERSION }}. Proceeding to create the release."
+        else
+          echo "Release for tag ${{ env.NEW_VERSION }} already exists. Upload URL: $UPLOAD_URL"
+        fi
+
+        echo "::set-output name=release_id::$RELEASE_ID"
+        echo "::set-output name=upload_url::$UPLOAD_URL"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+    - name: Create GitHub release
+      if: steps.check_release.outputs.release_id == 'null'
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+      with:
+        tag_name: ${{ env.NEW_VERSION }}
+        release_name: Release ${{ env.NEW_VERSION }}
+        draft: false
+        prerelease: false
+
+    - name: Set upload URL from newly created release
+      if: steps.create_release.outputs.upload_url != ''
+      run: echo "::set-output name=upload_url::${{ steps.create_release.outputs.upload_url }}"
+
+    - name: Upload release asset
+      uses: actions/upload-release-asset@v1
+      with:
+        upload_url: "${{ steps.check_release.outputs.upload_url != 'null' && steps.check_release.outputs.upload_url || steps.create_release.outputs.upload_url }}?name=cribops-wp-kit.zip"
+        asset_path: cribops-wp-kit.zip
+        asset_name: cribops-wp-kit.zip
+        asset_content_type: application/zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT }}
