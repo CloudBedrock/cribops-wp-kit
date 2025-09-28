@@ -244,6 +244,12 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.5 (2024)
+- Fixed broken logo path (moved logo_light.svg to correct location)
+- Updated all marketing URLs from wplaunchify.com to cribops.com
+- Removed remaining WPLaunchify branding references
+- Added fallback for logo display errors
+
 ### Version 1.0.4 (2024)
 - Added GitHub-based auto-updater for seamless plugin updates
 - Fixed fatal error on plugin activation (removed non-existent cwpk() method)

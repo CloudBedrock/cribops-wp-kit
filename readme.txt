@@ -4,7 +4,7 @@ Contributors: @1wdtv
 Tags: ecommerce, membership, marketing, sales-funnels, checkout
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 Description: Everything you need to Launch, Grow, Market & Monetize with WordPress
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -32,7 +32,7 @@ along with CribOps WP Kit.
 
 CribOps WP Kit provides everything everything you need to Launch, Grow, Market & Monetize with WordPress.
 
-* CribOps WP Kit is free to install and use. Additional premium features & hands-on help are [available here](https://wplaunchify.com/#pricing)
+* CribOps WP Kit is free to install and use. Additional premium features & hands-on help are [available here](https://cribops.com/pricing)
 
 ---
 

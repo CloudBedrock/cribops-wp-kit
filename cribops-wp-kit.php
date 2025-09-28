@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.4
+ * Version:     1.0.5
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.4';
+        const VERSION = '1.0.5';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -95,7 +95,7 @@ if (!class_exists('CribOpsWPKit')) {
         }
 
         public function cwpk_add_public_style() {
-            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.4');
+            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.5');
             wp_enqueue_style('cwpk-public');
         }
 
@@ -278,8 +278,8 @@ if (!class_exists('CribOpsWPKit')) {
 <div class="cwpk-dashboard__header">
   <!-- Left side: Logo + Login form together -->
   <div class="cwpk-header-left" style="display: flex; align-items: center;">
-    <a href="https://wplaunchify.com/#pricing" target="_blank">
-      <img class="cwpk-dashboard__logo" src="<?php echo WPLK_DIR_URL; ?>assets/images/logo_light.svg">
+    <a href="https://cribops.com/pricing" target="_blank">
+      <img class="cwpk-dashboard__logo" src="<?php echo WPLK_DIR_URL; ?>assets/images/logo_light.svg" alt="CribOps WP-Kit" onerror="this.style.display='none'">
     </a>
 
     <!-- Inline Login Area, now to the right of the logo -->
@@ -476,13 +476,13 @@ if (!class_exists('CribOpsWPKit')) {
                                         <span class="dashicons dashicons-update"></span>
                                         <h2>Get Your Pro Account</h2>
                                         <p> Available with concierge support from WPLaunchify.</p>
-                                        <p><a href="https://wplaunchify.com/#pricing" class="cwpk-button cwpk-featured" target="_blank">Upgrade To Pro Now!</a></p>
+                                        <p><a href="https://cribops.com/pricing" class="cwpk-button cwpk-featured" target="_blank">Upgrade To Pro Now!</a></p>
                                     </div>
                                     <div class="cwpk-settings-container">
                                         <h2>Subscribe To The WPLaunchClub Newsletter</h2>
                                         <p>WordPress Tutorials For Business Owners<br/>
                                         Membership, Marketing Automation, Online Courses, eCommerce & BuddyBoss</p>
-                                        <a href="https://wplaunchify.com/#newsletter" class="cwpk-button cwpk-featured" target="_blank">Subscribe Now (It's Free)</a>
+                                        <a href="https://cribops.com/newsletter" class="cwpk-button cwpk-featured" target="_blank">Subscribe Now (It's Free)</a>
                                     </div>
                                 </div>
                             </div>

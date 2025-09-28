@@ -136,8 +136,8 @@ class CWPKInstaller {
 
         // If not logged in
         if (! $logged_in) {
-            echo '<p>Unlock All Features By Subscribing To WPLaunchify.com <a href="https://wplaunchify.com/#pricing" target="_blank">Minute Launch Software Bundle</a></p>';
-            echo '<div class="cwpk-notice"><p>You are logged-out. Please log in via the header using your WPLaunchify.com username and password.</p></div>';
+            echo '<p>Unlock All Features By Subscribing To <a href="https://cribops.com/pricing" target="_blank">CribOps WP-Kit Software Bundle</a></p>';
+            echo '<div class="cwpk-notice"><p>You are logged-out. Please log in via the header using your CribOps username and password.</p></div>';
             echo '</div>'; // .wrap
             return;
         }
@@ -150,7 +150,7 @@ class CWPKInstaller {
             // Logged in but no membership
             echo '<div class="notice notice-error"><p>';
             echo 'You are logged in, but your account does not have Software Bundle access. ';
-            echo 'Please check that you have a current Subscription with <a href="https://wplaunchify.com" target="_blank">WPLaunchify</a>.';
+            echo 'Please check that you have a current Subscription with <a href="https://cribops.com" target="_blank">CribOps</a>.';
             echo '</p></div>';
             echo '</div>'; // .wrap
             return;
