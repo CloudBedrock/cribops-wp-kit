@@ -234,6 +234,10 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.12 (2024)
+- Test release to verify GitHub updater functionality
+- No functional changes - testing auto-update mechanism
+
 ### Version 1.0.11 (2024)
 - Fixed GitHub updater plugin path detection issue
 - Corrected plugin file location resolution in updater class

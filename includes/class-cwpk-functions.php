@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 Plugin Name: Re-enable Dependent Plugin Deactivate & Delete
 Plugin URI: https://cribops.com
 Description: Restores the plugin manager behavior to pre version 6.5 capability
-Version: 1.0.11
+Version: 1.0.12
 Author: CribOps Development Team
 Author URI: https://cribops.com
 */
