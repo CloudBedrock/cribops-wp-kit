@@ -1,0 +1,31 @@
+# WordPress
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build
+/dist/
+/build/
+
+# Environment
+.env
+.env.local
+
+# Cache/temp files
+*.cache
+*.tmp
+.temp/
+
+# Plugin specific
+/launchkit-updates/
+/prime-mover-export-files/
