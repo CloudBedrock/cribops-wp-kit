@@ -60,7 +60,7 @@ class CWPKGitHubUpdater {
 
         $github_data = $this->get_github_release();
 
-        if ($github_data && version_compare($this->current_version, $github_data->tag_name, '<')) {
+        if ($github_data && version_compare($this->current_version, str_replace('v', '', $github_data->tag_name), '<')) {
             $plugin_data = array(
                 'slug' => $this->plugin_slug,
                 'plugin' => $this->plugin_basename,

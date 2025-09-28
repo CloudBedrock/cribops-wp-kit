@@ -234,6 +234,10 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.13 (2024)
+- Fixed critical version comparison bug in GitHub updater
+- Removed 'v' prefix from version comparison to fix update detection
+
 ### Version 1.0.12 (2024)
 - Test release to verify GitHub updater functionality
 - No functional changes - testing auto-update mechanism
