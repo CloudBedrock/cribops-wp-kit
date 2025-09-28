@@ -234,6 +234,11 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.17 (2024)
+- Added virtual plugin display for dependency bypass feature
+- Shows "Re-enable Dependent Plugin Deactivate & Delete" in plugins list when enabled
+- Virtual plugin appears as active when checkbox is enabled in settings
+
 ### Version 1.0.16 (2024)
 - Final fix for duplicate update notifications
 - Ensure current version is properly set in checked list

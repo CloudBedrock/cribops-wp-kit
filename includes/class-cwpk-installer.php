@@ -249,7 +249,7 @@ class CWPKInstaller {
 
         $user_data = get_transient('lk_user_data');
         if (! $user_data || empty($user_data['launchkit_plugins_url'])) {
-            echo "<p>Error: Unable to retrieve LaunchKit plugins URL. Please log in again.</p>";
+            echo "<p>Error: Unable to retrieve CribOps plugin bundle URL. Please log in again.</p>";
             return;
         }
 
@@ -611,7 +611,7 @@ class CWPKInstaller {
 
         $user_data = get_transient('lk_user_data');
         if (! $user_data || empty($user_data['launchkit_plugins_url'])) {
-            wp_send_json_error('Unable to retrieve LaunchKit plugins URL. Please log in again.');
+            wp_send_json_error('Unable to retrieve CribOps plugin bundle URL. Please log in again.');
         }
 
         $bundle_url = $user_data['launchkit_plugins_url'];

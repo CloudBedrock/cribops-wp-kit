@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.16
+ * Version:     1.0.17
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.16';
+        const VERSION = '1.0.17';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -554,6 +554,46 @@ if (!class_exists('CribOpsWPKit')) {
             <?php
         }
 
+        /**
+         * Add the dependency bypass as a virtual plugin to the plugins list
+         */
+        public function add_dependency_bypass_virtual_plugin($plugins) {
+            $virtual_plugin_file = 'cwpk-dependency-bypass/cwpk-dependency-bypass.php';
+
+            // Only add if not already present
+            if (!isset($plugins[$virtual_plugin_file])) {
+                $plugins[$virtual_plugin_file] = array(
+                    'Name' => 'Re-enable Dependent Plugin Deactivate & Delete',
+                    'PluginURI' => 'https://cribops.com',
+                    'Version' => '1.0.17',
+                    'Description' => 'Restores the plugin manager behavior to pre version 6.5 capability',
+                    'Author' => 'CribOps Development Team',
+                    'AuthorURI' => 'https://cribops.com',
+                    'TextDomain' => 'cwpk-dependency-bypass',
+                    'DomainPath' => '',
+                    'Network' => false,
+                    'RequiresPHP' => '',
+                    'RequiresWP' => '',
+                    'UpdateURI' => '',
+                );
+            }
+
+            return $plugins;
+        }
+
+        /**
+         * Mark the virtual plugin as active
+         */
+        public function add_dependency_bypass_to_active_plugins($active_plugins) {
+            $virtual_plugin_file = 'cwpk-dependency-bypass/cwpk-dependency-bypass.php';
+
+            if (!in_array($virtual_plugin_file, $active_plugins)) {
+                $active_plugins[] = $virtual_plugin_file;
+            }
+
+            return $active_plugins;
+        }
+
         public function lk_add_deactivate_link($actions, $plugin_file) {
             if(isset($actions['deactivate'])) {
                 $actions['deactivate'] = str_replace('class="edit-plugin"', '', $actions['deactivate']);
@@ -758,6 +798,10 @@ if (!class_exists('CribOpsWPKit')) {
                 add_action('admin_print_styles', 'lk_enable_plugin_deactivation_css');
                 add_filter('plugin_action_links', 'lk_add_deactivate_link', 10, 2);
                 add_filter('plugin_action_links', 'lk_add_delete_link', 10, 2);
+
+                // Add virtual plugin to plugins list
+                add_filter('all_plugins', array($this, 'add_dependency_bypass_virtual_plugin'));
+                add_filter('option_active_plugins', array($this, 'add_dependency_bypass_to_active_plugins'));
             }
 
             if (isset($options['cwpk_checkbox_field_004']) && $options['cwpk_checkbox_field_004'] == '1') {
