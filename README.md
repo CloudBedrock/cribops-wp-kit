@@ -234,6 +234,12 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.10 (2024)
+- Improved login form UI with smaller logo (60px height)
+- Better styled input fields with proper padding
+- Changed placeholder from 'Username' to 'Email' for clarity
+- Enhanced form element styling and spacing
+
 ### Version 1.0.9 (2024)
 - Fixed plugin directory structure for proper file organization
 - Improved admin CSS for better login form visibility
