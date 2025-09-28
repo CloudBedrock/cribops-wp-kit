@@ -234,6 +234,12 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.9 (2024)
+- Fixed plugin directory structure for proper file organization
+- Improved admin CSS for better login form visibility
+- Made logo smaller and properly styled login interface
+- Fixed wp-config.php syntax errors
+
 ### Version 1.0.8 (2024)
 - Added "Check for Updates" link on plugin actions
 - Clear cache and force update check functionality
