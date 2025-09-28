@@ -234,6 +234,11 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.8 (2024)
+- Added "Check for Updates" link on plugin actions
+- Clear cache and force update check functionality
+- Added success notice after checking for updates
+
 ### Version 1.0.7 (2024)
 - Updated virtual plugin headers to CribOps branding
 - Fixed "Re-enable Dependent Plugin" showing old author info

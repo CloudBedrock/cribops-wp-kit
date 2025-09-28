@@ -31,6 +31,15 @@ class CWPKGitHubUpdater {
         add_filter('pre_set_site_transient_update_plugins', array($this, 'check_for_update'));
         add_filter('plugins_api', array($this, 'plugin_info'), 10, 3);
         add_filter('upgrader_source_selection', array($this, 'fix_plugin_folder'), 10, 3);
+
+        // Add check for updates link
+        add_filter('plugin_action_links_' . $this->plugin_basename, array($this, 'add_check_updates_link'));
+
+        // Handle check for updates action
+        add_action('admin_init', array($this, 'handle_check_updates'));
+
+        // Show update checked notice
+        add_action('admin_notices', array($this, 'show_update_checked_notice'));
     }
 
     /**
@@ -203,6 +212,82 @@ class CWPKGitHubUpdater {
         $changelog = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $changelog);
 
         return $changelog;
+    }
+
+    /**
+     * Add "Check for Updates" link to plugin actions
+     */
+    public function add_check_updates_link($links) {
+        $check_link = '<a href="' . wp_nonce_url(
+            add_query_arg(
+                array(
+                    'cwpk_check_updates' => '1',
+                    'plugin' => $this->plugin_basename
+                ),
+                admin_url('plugins.php')
+            ),
+            'cwpk_check_updates_' . $this->plugin_basename
+        ) . '">' . __('Check for Updates', 'cwpk') . '</a>';
+
+        array_unshift($links, $check_link);
+        return $links;
+    }
+
+    /**
+     * Handle the check for updates action
+     */
+    public function handle_check_updates() {
+        if (!isset($_GET['cwpk_check_updates']) || !isset($_GET['plugin'])) {
+            return;
+        }
+
+        if ($_GET['plugin'] !== $this->plugin_basename) {
+            return;
+        }
+
+        if (!wp_verify_nonce($_GET['_wpnonce'], 'cwpk_check_updates_' . $this->plugin_basename)) {
+            return;
+        }
+
+        if (!current_user_can('update_plugins')) {
+            return;
+        }
+
+        // Clear our GitHub cache
+        delete_transient('cwpk_github_release');
+
+        // Clear WordPress update cache
+        delete_site_transient('update_plugins');
+
+        // Force WordPress to check for updates
+        wp_update_plugins();
+
+        // Redirect back to plugins page with a success message
+        wp_redirect(add_query_arg(
+            array(
+                'cwpk_updates_checked' => '1'
+            ),
+            admin_url('plugins.php')
+        ));
+        exit;
+    }
+
+    /**
+     * Show admin notice after checking for updates
+     */
+    public function show_update_checked_notice() {
+        if (!isset($_GET['cwpk_updates_checked'])) {
+            return;
+        }
+
+        $current_screen = get_current_screen();
+        if ($current_screen->id !== 'plugins') {
+            return;
+        }
+
+        echo '<div class="notice notice-success is-dismissible">';
+        echo '<p>' . __('CribOps WP-Kit: Update check completed. If a new version is available, it will appear below.', 'cwpk') . '</p>';
+        echo '</div>';
     }
 }
 

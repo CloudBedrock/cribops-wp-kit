@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.7
+ * Version:     1.0.8
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.7';
+        const VERSION = '1.0.8';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -95,7 +95,7 @@ if (!class_exists('CribOpsWPKit')) {
         }
 
         public function cwpk_add_public_style() {
-            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.7');
+            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.8');
             wp_enqueue_style('cwpk-public');
         }
 
