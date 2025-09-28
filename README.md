@@ -234,6 +234,11 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.14 (2024)
+- Final test release to verify complete update functionality
+- Added FS_METHOD direct filesystem access
+- Fixed all permission issues for updates
+
 ### Version 1.0.13 (2024)
 - Fixed critical version comparison bug in GitHub updater
 - Removed 'v' prefix from version comparison to fix update detection
