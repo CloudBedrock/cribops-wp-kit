@@ -30,7 +30,6 @@ if (!class_exists('CribOpsWPKit')) {
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
             add_action('admin_init', array($this, 'save_plugin_settings'));
-            add_action('init', array($this, 'cwpk'));
             add_action('init', array($this, 'setup_constants'));
             add_action('plugins_loaded', array($this, 'init'));
             add_action('plugins_loaded', array($this, 'includes'));
