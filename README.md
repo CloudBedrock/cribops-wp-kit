@@ -234,6 +234,12 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.16 (2024)
+- Final fix for duplicate update notifications
+- Ensure current version is properly set in checked list
+- Double-check to prevent same-version updates
+- Properly clean up stale update data
+
 ### Version 1.0.15 (2024)
 - Fixed persistent update notification issue
 - Implemented singleton pattern for GitHub updater

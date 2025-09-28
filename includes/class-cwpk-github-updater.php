@@ -75,6 +75,9 @@ class CWPKGitHubUpdater {
             unset($transient->response[$this->plugin_basename]);
         }
 
+        // Also ensure we're in the checked list with current version
+        $transient->checked[$this->plugin_basename] = $this->current_version;
+
         $github_data = $this->get_github_release();
 
         if (!$github_data) {
@@ -83,12 +86,17 @@ class CWPKGitHubUpdater {
 
         $github_version = str_replace('v', '', $github_data->tag_name);
 
-        // Only add update if GitHub version is actually newer
+        // Only add update if GitHub version is actually newer (not equal!)
         if (version_compare($this->current_version, $github_version, '<')) {
+            // Double-check: never show update to same version
+            if ($this->current_version === $github_version) {
+                return $transient;
+            }
+
             $plugin_data = array(
                 'slug' => $this->plugin_slug,
                 'plugin' => $this->plugin_basename,
-                'new_version' => str_replace('v', '', $github_data->tag_name),
+                'new_version' => $github_version,
                 'url' => "https://github.com/{$this->github_username}/{$this->github_repo}",
                 'package' => $this->get_download_url($github_data),
                 'icons' => array(
