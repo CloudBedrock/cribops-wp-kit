@@ -2,7 +2,8 @@
 .DS_Store
 Thumbs.db
 *.log
-
+CLAUDE.md
+.claude
 # IDE
 .vscode/
 .idea/

@@ -1,0 +1,198 @@
+/* WPLaunchKit Admin Styles */
+
+.toplevel_page_wplk .form-table th {
+    width: 500px;
+ }
+
+ .toplevel_page_wplk h2:after {
+    background: #dedede;
+    content: "";
+    display: block;
+    height: 1px;
+    margin-top: 10px;
+}
+
+.wplk-dashboard__header {
+    background: #fff;
+    margin-left: -20px;
+    margin-right: -20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: calc(100% + 20px);
+}
+
+.wplk-dashboard__logo {
+    max-height: 30px;
+    max-width: 200px;
+}
+
+.wplk-dashboard__version {
+    line-height: 1;
+    padding: 6px 12px;
+    background: #f1f1f1;
+    color: #666;
+    font-weight: 500;
+    border-radius: 999px;
+}
+
+.wplk-dashboard__content {
+    margin: 25px 0;
+    width: calc(100% - 20px);
+}
+
+.wplk-inner {
+    max-width: 800px;
+    padding: 30px;
+    background: rgb(255, 255, 255);
+    color: rgb(30, 30, 30);
+    position: relative;
+    box-shadow: rgb(0 0 0 / 10%) 0px 0px 0px 1px;
+    outline: none;
+    border-radius: calc(1px);
+}
+
+.wplk-wrap nav.nav-tab-wrapper {
+    background: #fff;
+    margin: -10px -20px 0;
+    border-top: 1px solid #dedede;
+}
+
+.wplk-wrap a.nav-tab {
+    border: none;
+    background: transparent;
+}
+
+.wplk-wrap .nav-tab-active, 
+.wplk-wrap .nav-tab-active:focus, 
+.wplk-wrap .nav-tab-active:focus:active, 
+.wplk-wrap .nav-tab-active:hover {
+    border-bottom: 4px solid #e55b10 !important;
+ }
+
+.wplk-wrap a.nav-tab:hover {
+    color: #e55b10;
+ }
+
+.wplk-wrap .wp-core-ui .button-primary {
+    background: #e55b10;
+    border-color: #e55b10;
+    color: #fff;
+    text-decoration: none;
+    text-shadow: none;
+}
+
+.wplk-wrap .wp-core-ui .button-primary.focus, 
+.wplk-wrap .wp-core-ui .button-primary.hover, 
+.wplk-wrap .wp-core-ui .button-primary:focus, 
+.wplk-wrap .wp-core-ui .button-primary:hover {
+    background: #012888;
+    border-color: #012888;
+    color: #fff;
+}
+
+.wplk-wrap .wplk-downloads {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-column-gap: 35px;
+    margin: 40px 0 0 0;
+}
+
+.wplk-wrap .wplk-downloads li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    padding: 40px;
+    margin-bottom: 40px;
+    background: #fff;
+    border-radius: 3px;
+    box-shadow: 0 20px 30px rgb(143 163 184 / 15%);
+    transition: all .25s ease;
+    border: 1px solid #dedede;
+}
+
+.wplk-wrap .wplk-button {
+    color: rgba(46,68,83,.8);
+    background: #fff;
+    border-color: #e2e6eb;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 4%);
+}
+
+.wplk-wrap a.wplk-button.wplk-featured {
+    background: #e55b10;;
+    color: #fff;
+}
+
+.wplk-wrap a.wplk-button.wplk-featured:hover {
+    box-shadow: 0 1px 4px #240e014a;
+    border: 1px solid #e55b10;
+}
+
+.wplk-wrap [class*=wplk-button] {
+    min-width: 150px;
+    margin-bottom: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--buttonHeight, 35px);
+    padding: 0 var(--buttonPadding, 15px);
+    font-size: var(--buttonFontSize, 13px);
+    font-weight: 500;
+    outline: none;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    letter-spacing: .01em;
+    border-radius: 3px;
+    border-width: 1px;
+    border-style: solid;
+    box-sizing: border-box;
+    transition: color .2s ease,background .2s ease,transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+}
+
+@media (min-width: 783px) {
+.wplk-wrap .wplk-cta-container, 
+.wplk-wrap .wplk-support-container {
+    padding: 50px;
+}
+}
+
+.wplk-wrap .wplk-cta-container, 
+.wplk-wrap .wplk-support-container {
+    text-align: center;
+    border-radius: 3px;
+    border: 1px solid #dedede;
+    margin-bottom: 40px;
+    box-shadow: 0 20px 30px rgb(143 163 184 / 15%);
+}
+
+.wplk-wrap .wplk-downloads p {
+    min-height: 60px;
+}
+
+.wplk-wrap a:active, 
+.wplk-wrap a:hover {
+    color: #e55b10;
+}
+
+.wplk-wrap a.sponsor,
+.wplk-wrap a.sponsor:hover,
+.wplk-wrap .wplk-support-container p a,
+.wplk-wrap .wplk-support-container p a:active, 
+.wplk-wrap .wplk-support-container p a:hover {
+    color: #e55b10;
+    text-decoration: none;
+}
+
+.wplk-wrap .form-table {
+   margin-bottom: 40px;
+}
+
+
+.wplk-wrap span.dashicons.dashicons-update {
+    width: 50px;
+    height: 50px;
+    font-size: 50px;
+}

@@ -1,0 +1,6 @@
+/* WPLaunchKit Public Styles */
+
+/* Fix Kadence Conversions When Using BuddyBoss Theme */
+.buddyboss-theme #kadence-conversion-end-of-content {
+    flex-basis: 100%;
+}

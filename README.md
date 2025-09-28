@@ -1,76 +1,254 @@
-# CribOps Kit
+# CribOps WP Kit
 
-A fork of LaunchKit Pro v2.13.2, modified for agency use with self-hosted plugin repository.
+A comprehensive WordPress site management and deployment toolkit for agencies. Fork of LaunchKit Pro v2.13.2, completely rebuilt with self-hosted infrastructure.
 
 ## Overview
 
-CribOps Kit is a WordPress plugin that provides:
-- Centralized plugin management from agency-licensed software repository
-- Prime Mover Pro integration for site templates
-- Admin notification management
-- Dashboard cleanup utilities
+CribOps WP Kit is a WordPress plugin that provides:
+- 🚀 Bulk plugin installation and management
+- 📦 Prime Mover Pro integration for site templates
+- 🔑 Automatic license key management for premium plugins
+- 🎛️ Admin dashboard cleanup and customization
+- 🔄 Self-hosted plugin repository with API backend
+- ☁️ AWS S3/CloudFront CDN integration
 
-## Original Source
+## Attribution
 
-Forked from LaunchKit Pro (GPL v2 licensed) - https://wplaunchify.com
+Based on LaunchKit Pro v2.13.2 by WPLaunchify (https://wplaunchify.com)
+Original plugin licensed under GPL v2 - See LICENSE.txt and AUTHORS.md for full attribution.
 
-## Key Modifications Planned
+## System Architecture
 
-1. **Repository Management**
-   - Replace WPLaunchify API with self-hosted repository
-   - Implement agency license key management
-   - Custom plugin bundle configuration
+### WordPress Plugin
+- Centralized configuration management
+- Environment-aware API endpoints
+- Legacy WPLaunchify compatibility layer
 
-2. **Prime Mover Integration**
-   - Use Prime Mover Pro for creating custom site templates
-   - Host .wprime packages on agency servers
-   - Remove dependency on WPLaunchify packages
-
-3. **Authentication**
-   - Replace or remove WPLaunchify authentication
-   - Implement agency-specific access control
+### Elixir/Phoenix API Backend
+- RESTful API for plugin/package distribution
+- User authentication and authorization
+- AWS S3 integration for file storage
+- Comprehensive access logging
 
 ## Directory Structure
 
 ```
-cribops-kit/
-├── assets/           # CSS, JS, images
-├── includes/         # PHP class files
-│   ├── class-wplk-deleter.php
-│   ├── class-wplk-experimental.php
-│   ├── class-wplk-functions-launchkit.php
-│   ├── class-wplk-installer.php
-│   ├── class-wplk-license-loader.php
-│   ├── class-wplk-manager.php
-│   ├── class-wplk-pluginmanager.php
-│   └── class-wplk-updater.php
-├── launchkit.php     # Main plugin file (to be renamed)
-└── readme.txt        # WordPress plugin readme
+cribops-wp-kit/
+├── assets/                      # Static assets
+│   ├── css/
+│   │   ├── cwpk-admin.css     # Admin panel styles
+│   │   ├── cwpk-public.css    # Public styles
+│   │   └── cwpk-wp-admin.css  # WP admin customizations
+│   └── images/                 # Plugin images and icons
+├── includes/                   # Core PHP classes
+│   ├── class-cwpk-config.php         # ✨ Centralized API configuration
+│   ├── class-cwpk-deleter.php        # Bulk plugin deletion
+│   ├── class-cwpk-experimental.php   # Experimental features
+│   ├── class-cwpk-functions.php      # Utility functions
+│   ├── class-cwpk-installer.php      # Plugin installation manager
+│   ├── class-cwpk-license-loader.php # License key automation
+│   ├── class-cwpk-manager.php        # Plugin recipe manager
+│   ├── class-cwpk-pluginmanager.php  # Plugin management core
+│   └── class-cwpk-updater.php        # Self-hosted update system
+├── cribops-wp-kit.php          # Main plugin file
+├── wp-config-snippet.php       # Configuration template
+├── API_REQUIREMENTS.md         # API documentation
+├── AUTHORS.md                  # Attribution
+├── IMPLEMENTATION_SUMMARY.md   # Technical overview
+└── readme.txt                  # WordPress.org readme
 ```
 
-## Features Retained
+## Configuration
 
-- Admin notice hiding system
-- Plugin activation wizard bypass
-- Dashboard cleanup options
-- Bulk plugin installation interface
+### Environment Setup
+
+Add to your `wp-config.php`:
+
+```php
+// Set environment type (auto-configures API URL)
+define('WP_ENVIRONMENT_TYPE', 'development'); // or 'staging', 'production'
+
+// Or manually set API URL
+define('CWPK_API_URL', 'https://cribops.cloudbedrock.com'); // Development
+// define('CWPK_API_URL', 'https://cribops.com'); // Production
+
+// Optional: CDN URL for assets
+define('CWPK_CDN_URL', 'https://cdn.cribops.com');
+
+// Optional: API timeout (default: 30 seconds)
+define('CWPK_API_TIMEOUT', 60);
+```
+
+### API Endpoints
+
+The plugin automatically configures endpoints based on environment:
+
+| Environment | API URL |
+|------------|---------|
+| Development | `https://cribops.cloudbedrock.com` |
+| Staging | `https://staging.cribops.com` |
+| Production | `https://cribops.com` |
+
+## Features
+
+### ✅ Implemented
+- Centralized API configuration system
+- WordPress Kit user authentication
+- Plugin bundle management
+- Prime Mover package distribution
+- License key automation for 15+ premium plugins
+- Legacy WPLaunchify API compatibility
+- AWS S3 file storage integration
+- Comprehensive access logging
+- Environment-aware configuration
+
+### 🔧 Plugin Management
+- Bulk plugin installation
+- Recipe-based plugin deployment
+- Automatic license key injection
+- Plugin update management
+- Inactive plugin cleanup
+
+### 🎨 Admin Customization
+- Hide admin notices with toggle
+- Disable plugin activation wizards
+- Remove plugin dependencies (pre-WP 6.5 behavior)
+- Whitelabel mode for client sites
+- Disable WordPress update emails
+
+### 📦 Supported Premium Plugins
+- Elementor Pro
+- WP Rocket
+- Gravity Forms
+- Advanced Custom Fields Pro
+- Prime Mover Pro
+- FluentCRM Pro
+- AffiliateWP
+- SearchWP
+- WP All Import/Export Pro
+- Kadence Blocks Pro
+- LearnDash
+- WooCommerce extensions
+- And more...
+
+## API Backend Setup
+
+### Database Tables
+- `wp_kit_users` - WordPress site administrators
+- `wp_kit_sites` - Registered WordPress sites
+- `wp_kit_plugins` - Available plugin catalog
+- `wp_kit_packages` - Prime Mover packages
+- `wp_kit_access_logs` - API access tracking
+- `wp_kit_user_permissions` - Granular access control
+
+### Required Environment Variables
+```bash
+# AWS Configuration
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+AWS_S3_BUCKET=cribops-wp-kit
+AWS_REGION=us-east-1
+
+# Optional
+CDN_URL=https://cdn.cribops.com
+```
+
+## Testing
+
+### Run API Tests
+```bash
+cd ~/dev/cribops-public
+./test_wp_kit_api.sh
+```
+
+### Test Credentials
+- Email: `test@cribops.com`
+- Password: `password123`
+
+### Seed Database
+```bash
+cd ~/dev/cribops-public
+source .env
+mix run priv/repo/seeds_wp_kit.exs
+```
+
+## Development
+
+### Local Development Setup
+
+1. **WordPress Plugin**
+   ```bash
+   cd /path/to/wordpress/wp-content/plugins/
+   git clone https://github.com/your-org/cribops-wp-kit.git
+   ```
+
+2. **Elixir API Backend**
+   ```bash
+   cd ~/dev/cribops-public
+   source .env
+   mix ecto.migrate
+   mix run priv/repo/seeds_wp_kit.exs
+   mix phx.server
+   ```
+
+3. **Configure WordPress**
+   - Add configuration to `wp-config.php`
+   - Activate the plugin
+   - Login with test credentials
+
+### API Testing
+The included `test_wp_kit_api.sh` script tests all endpoints:
+- Authentication (legacy and new)
+- Update checking
+- Plugin listing and downloads
+- Package management
+- Bundle downloads
+
+## Deployment
+
+### Production Checklist
+- [ ] Update `CWPK_API_URL` to production URL
+- [ ] Upload plugin ZIP files to S3 bucket
+- [ ] Upload Prime Mover packages to S3
+- [ ] Configure CloudFront CDN (optional)
+- [ ] Set up SSL certificates
+- [ ] Configure Oban Pro for background jobs
+- [ ] Add real license keys for premium plugins
+- [ ] Set up monitoring and alerting
+
+## Security
+
+- Passwords hashed with bcrypt
+- API authentication via Bearer tokens
+- Presigned S3 URLs with expiration
+- Comprehensive access logging
+- Per-user and per-organization access control
+- No direct S3 bucket exposure
+
+## Migration from LaunchKit/WPLaunchify
+
+The plugin maintains backward compatibility with legacy endpoints:
+- `/wp-json/wplaunchify/v1/user-meta` → `/api/wp-kit/v1/user-meta`
+- `/wp-content/uploads/software-bundle/` → S3/CDN distribution
+
+## Support
+
+For issues or questions:
+- Check `IMPLEMENTATION_SUMMARY.md` for technical details
+- Review `API_REQUIREMENTS.md` for API documentation
+- Run `test_wp_kit_api.sh` for diagnostics
 
 ## License
 
-GPL v2 or later (inherited from original LaunchKit Pro)
+GPL v2 or later - See LICENSE.txt for full license text.
 
-## Development Notes
+## Changelog
 
-- Original uses 12-hour cache for plugin bundles
-- Downloads ~300MB bundle containing 115+ premium plugins
-- Prime Mover packages stored in `/wp-content/uploads/prime-mover-export-files/1/`
-- Plugin cache stored in `/wp-content/uploads/launchkit-updates/`
-
-## Next Steps
-
-1. Rename plugin and update headers
-2. Remove WPLaunchify API dependencies
-3. Implement custom repository system
-4. Configure Prime Mover Pro integration
-5. Update authentication mechanism
-6. Test with agency plugin repository
+### Version 1.0.0 (2024)
+- Initial fork from LaunchKit Pro v2.13.2
+- Complete rebrand to CribOps WP Kit
+- Implemented self-hosted API backend
+- Added AWS S3 integration
+- Created centralized configuration system
+- Added comprehensive test suite
+- Removed WPLaunchify dependencies
