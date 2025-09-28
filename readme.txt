@@ -1,46 +1,46 @@
-=== LaunchKit ===
+=== CribOps WP Kit ===
 
 Contributors: @1wdtv
 Tags: ecommerce, membership, marketing, sales-funnels, checkout
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 2.13.2
+Stable tag: 1.0.4
 Description: Everything you need to Launch, Grow, Market & Monetize with WordPress
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-LaunchKit makes it possible for anyone get up and running with a fully functional WordPress business site in just a few minutes.
+CribOps WP Kit makes it possible for anyone get up and running with a fully functional WordPress business site in just a few minutes.
 
 
 == License ==
 
-LaunchKit is free software: you can redistribute it and/or modify
+CribOps WP Kit is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 2 of the License, or
 any later version.
  
-LaunchKit is distributed in the hope that it will be useful,
+CribOps WP Kit is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
  
 You should have received a copy of the GNU General Public License
-along with LaunchKit.
+along with CribOps WP Kit.
 
 
 == Description ==
 
-LaunchKit provides everything everything you need to Launch, Grow, Market & Monetize with WordPress.
+CribOps WP Kit provides everything everything you need to Launch, Grow, Market & Monetize with WordPress.
 
-* LaunchKit is free to install and use. Additional premium features & hands-on help are [available here](https://wplaunchify.com/#pricing)
+* CribOps WP Kit is free to install and use. Additional premium features & hands-on help are [available here](https://wplaunchify.com/#pricing)
 
 ---
 
-LaunchKit makes it possible for anyone get up and running with a fully functional WordPress business site in just a few minutes. 
+CribOps WP Kit makes it possible for anyone get up and running with a fully functional WordPress business site in just a few minutes. 
 
-LaunchKit provides a curated, white-label admin experience for WordPress that makes it possible to launch powerful solutions in minutes instead of hours or days.
+CribOps WP Kit provides a curated, white-label admin experience for WordPress that makes it possible to launch powerful solutions in minutes instead of hours or days.
 
-LaunchKit offers powerful features by curating the best-in-class WordPress plugins into complementary features.
+CribOps WP Kit offers powerful features by curating the best-in-class WordPress plugins into complementary features.
 
 These features include:
 
@@ -58,9 +58,9 @@ These features include:
 * Subscriptions
 * ..and more
 
-With just one click you can be up and running with a fully functional business site based on LaunchKit.
+With just one click you can be up and running with a fully functional business site based on CribOps WP Kit.
 
-Instead of creating Frankenstein Monsters by purchasing and installing random plugins at the flea market, LaunchKit provides you an optimized WordPress admin experience for instant delivery and management of a curated software stack, with expert help for your WordPress "solution" as a whole. 
+Instead of creating Frankenstein Monsters by purchasing and installing random plugins at the flea market, CribOps WP Kit provides you an optimized WordPress admin experience for instant delivery and management of a curated software stack, with expert help for your WordPress "solution" as a whole. 
 
 
 ## Changelog

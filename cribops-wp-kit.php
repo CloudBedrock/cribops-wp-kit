@@ -1,16 +1,16 @@
 <?php
 /**
  * Plugin Name: CribOps WP Kit
- * Plugin URI:  https://github.com/cribops/cribops-wp-kit
+ * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.0
+ * Version:     1.0.4
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
  * Tested up to: 6.7.1
  * Requires PHP: 7.4
- * Update URI:  https://github.com/cribops/cribops-wp-kit
+ * Update URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * License:     GPLv2
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  *
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.0';
+        const VERSION = '1.0.4';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -95,7 +95,7 @@ if (!class_exists('CribOpsWPKit')) {
         }
 
         public function cwpk_add_public_style() {
-            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.0');
+            wp_register_style('cwpk-public', WPLK_DIR_URL . 'assets/css/cwpk-public.css', false, '1.0.4');
             wp_enqueue_style('cwpk-public');
         }
 
@@ -115,7 +115,8 @@ if (!class_exists('CribOpsWPKit')) {
             require_once('includes/class-cwpk-license-loader.php');
             require_once('includes/class-cwpk-manager.php');
             require_once('includes/class-cwpk-pluginmanager.php');
-            require_once('includes/class-cwpk-updater.php');
+            // require_once('includes/class-cwpk-updater.php'); // Disabled - using GitHub updater
+            require_once('includes/class-cwpk-github-updater.php');
         }
 
         public function setup_constants() {

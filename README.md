@@ -244,6 +244,14 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.4 (2024)
+- Added GitHub-based auto-updater for seamless plugin updates
+- Fixed fatal error on plugin activation (removed non-existent cwpk() method)
+- Fixed all redirect URLs from wplk to cwpk
+- Updated all branding from LaunchKit to CribOps WP Kit
+- Changed logo to logo_light.svg
+- Updated GitHub Actions to use GH_PAT secret
+
 ### Version 1.0.0 (2024)
 - Initial fork from LaunchKit Pro v2.13.2
 - Complete rebrand to CribOps WP Kit
