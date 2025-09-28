@@ -13,11 +13,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /*
 Plugin Name: Re-enable Dependent Plugin Deactivate & Delete
-Plugin URI: https://wplaunchify.com
+Plugin URI: https://cribops.com
 Description: Restores the plugin manager behavior to pre version 6.5 capability
-Version: 1.0
-Author: 1WD LLC
-Author URI: https://wplaunchify.com
+Version: 1.0.7
+Author: CribOps Development Team
+Author URI: https://cribops.com
 */
 
 /*

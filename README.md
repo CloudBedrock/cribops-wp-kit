@@ -234,6 +234,11 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.7 (2024)
+- Updated virtual plugin headers to CribOps branding
+- Fixed "Re-enable Dependent Plugin" showing old author info
+- Updated plugin URI to cribops.com
+
 ### Version 1.0.6 (2024)
 - Updated README configuration examples
 - Improved documentation clarity
