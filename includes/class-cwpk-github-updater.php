@@ -20,7 +20,15 @@ class CWPKGitHubUpdater {
      * Initialize the GitHub updater
      */
     public function __construct() {
-        $plugin_file = plugin_dir_path(dirname(__FILE__)) . 'cribops-wp-kit.php';
+        // Get the main plugin file path correctly
+        $plugin_file = dirname(dirname(__FILE__)) . '/cribops-wp-kit.php';
+
+        // Ensure we're using the absolute path
+        if (!file_exists($plugin_file)) {
+            // Fallback to using WP functions
+            $plugin_file = WP_PLUGIN_DIR . '/cribops-wp-kit/cribops-wp-kit.php';
+        }
+
         $plugin_data = get_file_data($plugin_file, array('Version' => 'Version'), false);
 
         $this->current_version = $plugin_data['Version'];

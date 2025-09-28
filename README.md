@@ -234,6 +234,11 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.11 (2024)
+- Fixed GitHub updater plugin path detection issue
+- Corrected plugin file location resolution in updater class
+- Added fallback path detection for better reliability
+
 ### Version 1.0.10 (2024)
 - Improved login form UI with smaller logo (60px height)
 - Better styled input fields with proper padding
