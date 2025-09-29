@@ -60,8 +60,24 @@ class CWPK_Manifest_Installer {
      * Normalize plugin data structure
      */
     private function normalize_plugin_data($plugin) {
+        $slug = isset($plugin['slug']) ? $plugin['slug'] : '';
+
+        // Check if file is already downloaded
+        $upload_dir = wp_upload_dir();
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $file_path = $target_dir . '/' . $slug . '.zip';
+        $is_downloaded = file_exists($file_path);
+
+        // Get plugin status
+        $status = $this->get_plugin_status($slug);
+
+        // If not installed but file exists, mark as downloaded
+        if ($status === 'not_installed' && $is_downloaded) {
+            $status = 'downloaded';
+        }
+
         return array(
-            'slug' => isset($plugin['slug']) ? $plugin['slug'] : '',
+            'slug' => $slug,
             'name' => isset($plugin['name']) ? $plugin['name'] : '',
             'author' => isset($plugin['author']) ? $plugin['author'] : '',
             'description' => isset($plugin['description']) ? $plugin['description'] : '',
@@ -73,8 +89,8 @@ class CWPK_Manifest_Installer {
             's3_url' => isset($plugin['s3_url']) ? $plugin['s3_url'] : '',
             'cdn_url' => isset($plugin['cdn_url']) ? $plugin['cdn_url'] : '',
             'download_url' => isset($plugin['download_url']) ? $plugin['download_url'] : '',
-            'status' => $this->get_plugin_status($plugin['slug']),
-            'local' => false
+            'status' => $status,
+            'local' => $is_downloaded
         );
     }
 
@@ -242,6 +258,12 @@ class CWPK_Manifest_Installer {
         }
 
         $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+
+        // If file already exists, back it up before overwriting
+        if (file_exists($file_path)) {
+            @unlink($file_path . '.backup');
+            @rename($file_path, $file_path . '.backup');
+        }
 
         // Use WordPress download function with increased timeout
         add_filter('http_request_timeout', array($this, 'extend_timeout'));
@@ -467,6 +489,7 @@ class CWPK_Manifest_Installer {
                     $('#cwpk-install-downloaded').on('click', this.installDownloaded.bind(this));
                     $('#cwpk-select-all').on('change', this.toggleSelectAll.bind(this));
                     $(document).on('click', '.cwpk-download-single', this.downloadSingle.bind(this));
+                    $(document).on('click', '.cwpk-redownload', this.redownloadPlugin.bind(this));
                     $(document).on('click', '.cwpk-install', this.installPlugin.bind(this));
                     $(document).on('click', '.cwpk-activate', this.activatePlugin.bind(this));
                 },
@@ -554,6 +577,13 @@ class CWPK_Manifest_Installer {
                     });
                 },
 
+                redownloadPlugin: function(e) {
+                    e.preventDefault();
+                    if (confirm('Are you sure you want to re-download this plugin? This will overwrite the existing file.')) {
+                        this.downloadSingle(e);
+                    }
+                },
+
                 loadManifest: function() {
                     $('#cwpk-manifest-status').text('Loading plugin list...');
 
@@ -590,10 +620,11 @@ class CWPK_Manifest_Installer {
                                 statusClass = 'cwpk-status-inactive';
                                 statusText = '<span class="dashicons dashicons-minus"></span> Inactive';
                                 actions = '<button class="button button-small cwpk-activate" data-plugin="' + plugin.slug + '">Activate</button>';
-                            } else if (plugin.local) {
+                            } else if (plugin.status === 'downloaded' || plugin.local) {
                                 statusClass = 'cwpk-status-downloaded';
                                 statusText = '<span class="dashicons dashicons-download"></span> Downloaded';
-                                actions = '<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '">Install</button>';
+                                actions = '<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '">Install</button>' +
+                                        ' <button class="button button-small cwpk-redownload" data-plugin-index="' + i + '">Re-download</button>';
                             } else {
                                 statusClass = 'cwpk-status-available';
                                 statusText = '<span class="dashicons dashicons-cloud"></span> Available';
@@ -642,8 +673,10 @@ class CWPK_Manifest_Installer {
                     }, function(response) {
                         if (response.success) {
                             plugin.local = true;
+                            plugin.status = 'downloaded';
                             statusCell.html('<span class="dashicons dashicons-download"></span> Downloaded');
-                            $('.cwpk-action-' + plugin.slug).html('<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '">Install</button>');
+                            $('.cwpk-action-' + plugin.slug).html('<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '">Install</button>' +
+                                ' <button class="button button-small cwpk-redownload" data-plugin-index="' + pluginIndex + '">Re-download</button>');
                         } else {
                             button.text('Download').prop('disabled', false);
                             statusCell.html('<span class="dashicons dashicons-warning"></span> Error');
@@ -732,6 +765,12 @@ class CWPK_Manifest_Installer {
                 float: none;
                 margin: 0;
                 vertical-align: middle;
+            }
+            .cwpk-redownload {
+                margin-left: 5px !important;
+            }
+            .cwpk-action-cell .button + .button {
+                margin-left: 5px;
             }
             @media screen and (max-width: 1200px) {
                 .cwpk-plugin-description {
