@@ -240,58 +240,13 @@ class CWPKInstaller {
     }
 
     /**
-     * Download & display plugin updates from remote LaunchKit zip
+     * Display plugin updates using API manifest method
      */
     public function fetch_latest_launchkit_plugins() {
-        $last_download_timestamp = get_option('lk_last_download_timestamp', 0);
-        $current_timestamp       = time();
-        $cache_expiration        = 12 * HOUR_IN_SECONDS; // 12 hours
-
         $user_data = get_transient('lk_user_data');
-        if (! $user_data || empty($user_data['launchkit_plugins_url'])) {
-            echo "<p>Error: Unable to retrieve CribOps plugin bundle URL. Please log in again.</p>";
-            return;
-        }
 
-        $bundle_url = $user_data['launchkit_plugins_url'];
-        $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
-
-        // Re-download if cache expired
-        if ($current_timestamp - $last_download_timestamp >= $cache_expiration) {
-            if (file_exists($target_dir)) {
-                $files = glob($target_dir . '/*');
-                foreach ($files as $file) {
-                    if (is_file($file)) {
-                        unlink($file);
-                    }
-                }
-            } else {
-                wp_mkdir_p($target_dir);
-            }
-
-            $tmp_file = download_url($bundle_url);
-            if (is_wp_error($tmp_file)) {
-                echo "<p>Failed to download LaunchKit plugins: " . $tmp_file->get_error_message() . "</p>";
-                return;
-            }
-
-            $zip = new ZipArchive();
-            if ($zip->open($tmp_file) === TRUE) {
-                $zip->extractTo($target_dir);
-                $zip->close();
-                @unlink($tmp_file);
-                echo "<p>Latest LaunchKit downloaded and extracted successfully.</p>";
-                update_option('lk_plugin_last_update', time());
-                update_option('lk_last_download_timestamp', $current_timestamp);
-            } else {
-                echo "<p>Failed to extract LaunchKit plugins.</p>";
-                return;
-            }
-        }
-
-        // Show the plugin table
-        $this->lk_display_plugins_table($target_dir, $upload_dir);
+        // Always use manifest-based installer for plugin list
+        $this->display_manifest_installer();
     }
 
     /**
@@ -354,7 +309,6 @@ class CWPKInstaller {
 
         echo '<h3 style="display:inline-block;">Plugins Available To Update</h3>';
         echo '<span style="margin-left: 10px;">Last Updated: ' . $last_updated_date . ' (Chicago Time)</span>';
-        echo '<a href="#" id="check_for_updates" style="display:inline-block; margin-left:10px;">Update Software Bundle</a>';
         echo '<div style="clear:both; margin-bottom:10px;"></div>';
         echo '<button type="button" id="install_selected" class="button button-primary">Install Selected Plugins</button>';
 
@@ -523,27 +477,6 @@ class CWPKInstaller {
                 $(this).find('.sorting-indicator').html(sortOrder === 'asc' ? '&#9650;' : '&#9660;');
             });
 
-            // Check for updates
-            $('#check_for_updates').click(function(e) {
-                e.preventDefault();
-                var button = $(this);
-                button.text('Checking for updates...').prop('disabled', true);
-
-                $.post(ajaxurl, {
-                    action: 'check_for_updates',
-                    security: '<?php echo wp_create_nonce("check_for_updates_nonce"); ?>'
-                }, function(response) {
-                    if (response.success) {
-                        location.reload();
-                    } else {
-                        alert(response.data || 'Failed to check for updates. Please try again.');
-                        button.text('Check For Updates').prop('disabled', false);
-                    }
-                }).fail(function(xhr, status, error) {
-                    alert('An error occurred while checking for updates: ' + error);
-                    button.text('Check For Updates').prop('disabled', false);
-                });
-            });
         })(jQuery);
         </script>
         <style>
@@ -604,49 +537,13 @@ class CWPKInstaller {
     }
 
     /**
-     * AJAX: check_for_updates
+     * AJAX: check_for_updates (deprecated - kept for backward compatibility)
      */
     public function check_for_updates_callback() {
         check_ajax_referer('check_for_updates_nonce', 'security');
 
-        $user_data = get_transient('lk_user_data');
-        if (! $user_data || empty($user_data['launchkit_plugins_url'])) {
-            wp_send_json_error('Unable to retrieve CribOps plugin bundle URL. Please log in again.');
-        }
-
-        $bundle_url = $user_data['launchkit_plugins_url'];
-        $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
-
-        if (file_exists($target_dir)) {
-            $files = glob($target_dir . '/*');
-            foreach ($files as $file) {
-                if (is_file($file)) {
-                    unlink($file);
-                }
-            }
-        } else {
-            wp_mkdir_p($target_dir);
-        }
-
-        $tmp_file = download_url($bundle_url);
-        if (is_wp_error($tmp_file)) {
-            error_log('Failed to download LaunchKit plugins: ' . $tmp_file->get_error_message());
-            wp_send_json_error('Failed to download LaunchKit plugins.');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($tmp_file) === true) {
-            $zip->extractTo($target_dir);
-            $zip->close();
-            @unlink($tmp_file);
-            update_option('lk_plugin_last_update', time());
-            update_option('lk_last_download_timestamp', time());
-            wp_send_json_success();
-        } else {
-            error_log('Failed to extract LaunchKit plugins.');
-            wp_send_json_error('Failed to extract LaunchKit plugins.');
-        }
+        // Since we're now using the API method exclusively, just return success
+        wp_send_json_success(['message' => 'Plugin list will be refreshed from API']);
     }
 
     /**
@@ -773,6 +670,26 @@ class CWPKInstaller {
     /**
      * After installing Prime Mover, auto-click the "skip activation" button
      */
+    /**
+     * Display manifest-based installer
+     */
+    public function display_manifest_installer() {
+        if (class_exists('CWPK_Manifest_Installer')) {
+            $manifest = new CWPK_Manifest_Installer();
+            $manifest->display_manifest_installer();
+        } else {
+            // Load the manifest installer class if not already loaded
+            $plugin_dir = plugin_dir_path(dirname(__FILE__));
+            if (file_exists($plugin_dir . 'includes/class-cwpk-manifest-installer.php')) {
+                require_once $plugin_dir . 'includes/class-cwpk-manifest-installer.php';
+                $manifest = new CWPK_Manifest_Installer();
+                $manifest->display_manifest_installer();
+            } else {
+                echo '<p>Manifest installer not available.</p>';
+            }
+        }
+    }
+
     public function skip_prime_mover_activation_script() {
         $current_url = isset($_SERVER['REQUEST_URI']) ? esc_url_raw($_SERVER['REQUEST_URI']) : '';
         if ($current_url === '/wp-admin/admin.php?page=migration-panel-settings') {
