@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.31
+ * Version:     1.0.32
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -559,6 +559,12 @@ if (!class_exists('CribOpsWPKit')) {
          * Add the dependency bypass as a virtual plugin to the plugins list
          */
         public function add_dependency_bypass_virtual_plugin($plugins) {
+            // Only show on plugins page to avoid activation issues
+            global $pagenow;
+            if ($pagenow !== 'plugins.php') {
+                return $plugins;
+            }
+
             $virtual_plugin_file = 'cwpk-dependency-bypass/cwpk-dependency-bypass.php';
 
             // Only add if not already present
@@ -566,7 +572,7 @@ if (!class_exists('CribOpsWPKit')) {
                 $plugins[$virtual_plugin_file] = array(
                     'Name' => 'Re-enable Dependent Plugin Deactivate & Delete',
                     'PluginURI' => 'https://cribops.com',
-                    'Version' => '1.0.17',
+                    'Version' => '1.0.31',
                     'Description' => 'Restores the plugin manager behavior to pre version 6.5 capability',
                     'Author' => 'CribOps Development Team',
                     'AuthorURI' => 'https://cribops.com',
@@ -583,9 +589,15 @@ if (!class_exists('CribOpsWPKit')) {
         }
 
         /**
-         * Mark the virtual plugin as active
+         * Mark the virtual plugin as active (only on plugins page)
          */
         public function add_dependency_bypass_to_active_plugins($active_plugins) {
+            // Only modify on plugins page to avoid activation issues
+            global $pagenow;
+            if ($pagenow !== 'plugins.php') {
+                return $active_plugins;
+            }
+
             $virtual_plugin_file = 'cwpk-dependency-bypass/cwpk-dependency-bypass.php';
 
             if (!in_array($virtual_plugin_file, $active_plugins)) {
