@@ -64,7 +64,7 @@ class CWPK_Manifest_Installer {
 
         // Check if file is already downloaded
         $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
         $file_path = $target_dir . '/' . $slug . '.zip';
         $is_downloaded = file_exists($file_path);
 
@@ -138,7 +138,7 @@ class CWPK_Manifest_Installer {
      */
     private function get_local_manifest() {
         $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
 
         $plugins = array();
 
@@ -160,7 +160,7 @@ class CWPK_Manifest_Installer {
                     'tested_up_to' => '',
                     's3_url' => '',
                     'cdn_url' => '',
-                    'download_url' => trailingslashit($upload_dir['baseurl']) . 'launchkit-updates/' . basename($file),
+                    'download_url' => trailingslashit($upload_dir['baseurl']) . 'cribops-wp-kit/' . basename($file),
                     'status' => $this->get_plugin_status(sanitize_title($plugin_name)),
                     'local' => true
                 );
@@ -222,7 +222,7 @@ class CWPK_Manifest_Installer {
 
                 if ($body) {
                     $upload_dir = wp_upload_dir();
-                    $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+                    $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
 
                     if (!file_exists($target_dir)) {
                         wp_mkdir_p($target_dir);
@@ -251,7 +251,7 @@ class CWPK_Manifest_Installer {
      */
     private function download_from_url($url, $plugin_slug) {
         $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
 
         if (!file_exists($target_dir)) {
             wp_mkdir_p($target_dir);
@@ -434,7 +434,7 @@ class CWPK_Manifest_Installer {
 
         // Check if file exists in download directory
         $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
 
         // Try the actual slug first, then the expected slug
         $file_path = $target_dir . '/' . $actual_slug . '.zip';
