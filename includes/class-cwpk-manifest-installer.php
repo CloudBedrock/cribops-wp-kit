@@ -461,8 +461,35 @@ class CWPK_Manifest_Installer {
 
         $installed_plugins = get_plugins();
 
+        // First try exact match
         foreach ($installed_plugins as $plugin_file => $plugin_info) {
             if (strpos($plugin_file, $plugin_slug . '/') === 0 || $plugin_file === $plugin_slug . '.php') {
+                return $plugin_file;
+            }
+        }
+
+        // Try with -pro suffix
+        $pro_slug = $plugin_slug . '-pro';
+        foreach ($installed_plugins as $plugin_file => $plugin_info) {
+            if (strpos($plugin_file, $pro_slug . '/') === 0 || $plugin_file === $pro_slug . '.php') {
+                return $plugin_file;
+            }
+        }
+
+        // Try removing -pro suffix if it exists
+        if (substr($plugin_slug, -4) === '-pro') {
+            $base_slug = substr($plugin_slug, 0, -4);
+            foreach ($installed_plugins as $plugin_file => $plugin_info) {
+                if (strpos($plugin_file, $base_slug . '/') === 0 || $plugin_file === $base_slug . '.php') {
+                    return $plugin_file;
+                }
+            }
+        }
+
+        // Try partial match (contains the slug)
+        foreach ($installed_plugins as $plugin_file => $plugin_info) {
+            $plugin_dir = dirname($plugin_file);
+            if (strpos($plugin_dir, $plugin_slug) !== false) {
                 return $plugin_file;
             }
         }
