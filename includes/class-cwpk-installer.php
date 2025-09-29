@@ -86,13 +86,13 @@ class CWPKInstaller {
      */
     public function launchkit_packages_menu() {
         $parent_slug = 'cwpk'; // The slug of the LaunchKit plugin's main menu
-        $page_slug   = 'launchkit-packages'; // The slug for the submenu page
+        $page_slug   = 'cwpk-packages'; // The slug for the submenu page
         $capability  = 'manage_options';
 
         add_submenu_page(
             $parent_slug,
-            __('CribOps WP-Kit Packages', 'launchkit-packages'),
-            __('CribOps WP-Kit Packages', 'launchkit-packages'),
+            __('CribOps WP-Kit Packages', 'cwpk-packages'),
+            __('CribOps WP-Kit Packages', 'cwpk-packages'),
             $capability,
             $page_slug,
             array($this, 'get_prime_page')
@@ -108,18 +108,18 @@ class CWPKInstaller {
     public function launchkit_hide_packages_submenu_item() {
         global $submenu;
         $parent_slug = 'cwpk';
-        $page_slug   = 'launchkit-packages';
+        $page_slug   = 'cwpk-packages';
 
         if (isset($submenu[$parent_slug])) {
             foreach ($submenu[$parent_slug] as &$item) {
                 if ($item[2] === $page_slug) {
-                    $item[4] = 'launchkit-packages-hidden';
+                    $item[4] = 'cwpk-packages-hidden';
                     break;
                 }
             }
         }
 
-        echo '<style>.launchkit-packages-hidden { display: none !important; }</style>';
+        echo '<style>.cwpk-packages-hidden { display: none !important; }</style>';
     }
 
     /**
@@ -801,7 +801,7 @@ class CWPKInstaller {
             ?>
             <div class="launchkit-banner">
                 <div class="launchkit-banner-content">
-                    <a href="<?php echo admin_url('admin.php?page=launchkit-packages'); ?>" class="button button-primary">Browse CribOps WP-Kit Packages</a>
+                    <a href="<?php echo admin_url('admin.php?page=cwpk-packages'); ?>" class="button button-primary">Browse CribOps WP-Kit Packages</a>
                     <span class="launchkit-banner-text">Launch in Seconds!</span>
                 </div>
             </div>
@@ -848,6 +848,16 @@ class CWPKInstaller {
         $package_two_url       = isset($user_data['package_two_url']) ? $user_data['package_two_url'] : '';
         $package_three_url     = isset($user_data['package_three_url']) ? $user_data['package_three_url'] : '';
 
+        // Get package images from API or use placeholders
+        $package_one_image   = isset($user_data['package_one_image']) ? $user_data['package_one_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+1';
+        $package_two_image   = isset($user_data['package_two_image']) ? $user_data['package_two_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+2';
+        $package_three_image = isset($user_data['package_three_image']) ? $user_data['package_three_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+3';
+
+        // Get package names from API or use defaults
+        $package_one_name   = isset($user_data['package_one_name']) ? $user_data['package_one_name'] : 'Package 1';
+        $package_two_name   = isset($user_data['package_two_name']) ? $user_data['package_two_name'] : 'Package 2';
+        $package_three_name = isset($user_data['package_three_name']) ? $user_data['package_three_name'] : 'Package 3';
+
         ?>
         <div class="wrap">
             <h1>Install CribOps WP-Kit Packages</h1>
@@ -861,21 +871,21 @@ class CWPKInstaller {
             <div class="package-selection-row">
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
-                        <img src="https://launchkit.b-cdn.net/minute-launch-package-one.png" alt="Package One Image" class="package-image">
+                        <img src="<?php echo esc_url($package_one_image); ?>" alt="<?php echo esc_attr($package_one_name); ?>" class="package-image">
                     </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_one_url); ?>">Upload Package 1</button>
+                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_one_url); ?>">Upload <?php echo esc_html($package_one_name); ?></button>
                 </div>
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
-                        <img src="https://launchkit.b-cdn.net/minute-launch-package-two.png" alt="Package Two Image" class="package-image">
+                        <img src="<?php echo esc_url($package_two_image); ?>" alt="<?php echo esc_attr($package_two_name); ?>" class="package-image">
                     </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_two_url); ?>">Upload Package 2</button>
+                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_two_url); ?>">Upload <?php echo esc_html($package_two_name); ?></button>
                 </div>
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
-                        <img src="https://launchkit.b-cdn.net/minute-launch-package-three.png" alt="Package Three Image" class="package-image">
+                        <img src="<?php echo esc_url($package_three_image); ?>" alt="<?php echo esc_attr($package_three_name); ?>" class="package-image">
                     </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_three_url); ?>">Upload Package 3</button>
+                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_three_url); ?>">Upload <?php echo esc_html($package_three_name); ?></button>
                 </div>
             </div>
 
