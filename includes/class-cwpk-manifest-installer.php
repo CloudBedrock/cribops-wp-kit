@@ -305,6 +305,109 @@ class CWPK_Manifest_Installer {
     }
 
     /**
+     * AJAX handler for plugin installation
+     */
+    public function ajax_install_plugin() {
+        check_ajax_referer('cwpk_manifest_nonce', 'security');
+
+        $plugin_slug = isset($_POST['plugin']) ? sanitize_text_field($_POST['plugin']) : '';
+
+        if (!$plugin_slug) {
+            wp_send_json_error('No plugin specified');
+        }
+
+        // Check if file exists in download directory
+        $upload_dir = wp_upload_dir();
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
+        $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+
+        if (!file_exists($file_path)) {
+            wp_send_json_error('Plugin file not found. Please download it first.');
+        }
+
+        // Install the plugin
+        WP_Filesystem();
+        $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
+
+        // Remove existing folder if any
+        if (is_dir($plugin_dir)) {
+            $this->delete_directory($plugin_dir);
+        }
+
+        $result = unzip_file($file_path, WP_PLUGIN_DIR);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error('Installation failed: ' . $result->get_error_message());
+        }
+
+        wp_send_json_success('Plugin installed successfully.');
+    }
+
+    /**
+     * AJAX handler for plugin activation
+     */
+    public function ajax_activate_plugin() {
+        check_ajax_referer('cwpk_manifest_nonce', 'security');
+
+        $plugin_slug = isset($_POST['plugin']) ? sanitize_text_field($_POST['plugin']) : '';
+
+        if (!$plugin_slug) {
+            wp_send_json_error('No plugin specified');
+        }
+
+        // Find the main plugin file
+        $plugin_file = $this->find_plugin_file($plugin_slug);
+
+        if (!$plugin_file) {
+            wp_send_json_error('Plugin not found');
+        }
+
+        $result = activate_plugin($plugin_file);
+
+        if (is_wp_error($result)) {
+            wp_send_json_error($result->get_error_message());
+        }
+
+        wp_send_json_success('Plugin activated successfully.');
+    }
+
+    /**
+     * Find plugin main file
+     */
+    private function find_plugin_file($plugin_slug) {
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        $installed_plugins = get_plugins();
+
+        foreach ($installed_plugins as $plugin_file => $plugin_info) {
+            if (strpos($plugin_file, $plugin_slug . '/') === 0 || $plugin_file === $plugin_slug . '.php') {
+                return $plugin_file;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Delete directory recursively
+     */
+    private function delete_directory($dir) {
+        if (!is_dir($dir)) {
+            return;
+        }
+        $objects = scandir($dir);
+        foreach ($objects as $object) {
+            if ($object !== '.' && $object !== '..') {
+                $file = $dir . '/' . $object;
+                is_dir($file) ? $this->delete_directory($file) : unlink($file);
+            }
+        }
+        rmdir($dir);
+    }
+
+    /**
      * Display manifest-based installer UI
      */
     public function display_manifest_installer() {
@@ -370,26 +473,85 @@ class CWPK_Manifest_Installer {
 
                 installPlugin: function(e) {
                     e.preventDefault();
+                    var self = this;
                     var button = $(e.target);
                     var plugin = button.data('plugin');
+                    var row = button.closest('tr');
 
                     button.text('Installing...').prop('disabled', true);
+                    var statusCell = row.find('.cwpk-status');
+                    statusCell.html('<span class="spinner is-active"></span> Installing...');
 
-                    // Add installation logic here
-                    alert('Installation functionality to be implemented for: ' + plugin);
-                    button.text('Install').prop('disabled', false);
+                    $.post(ajaxurl, {
+                        action: 'cwpk_install_plugin',
+                        plugin: plugin,
+                        security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            // Update status and action
+                            statusCell.html('<span class="dashicons dashicons-minus"></span> Inactive');
+                            statusCell.removeClass('cwpk-status-downloaded').addClass('cwpk-status-inactive');
+                            button.closest('td').html('<button class="button button-small cwpk-activate" data-plugin="' + plugin + '">Activate</button>');
+
+                            // Update the plugin status in our data
+                            self.plugins.forEach(function(p) {
+                                if (p.slug === plugin) {
+                                    p.status = 'inactive';
+                                }
+                            });
+                        } else {
+                            button.text('Install').prop('disabled', false);
+                            statusCell.html('<span class="dashicons dashicons-warning"></span> Error');
+                            alert('Installation failed: ' + response.data);
+                        }
+                    }).fail(function() {
+                        button.text('Install').prop('disabled', false);
+                        statusCell.html('<span class="dashicons dashicons-warning"></span> Failed');
+                        alert('Installation failed. Please try again.');
+                    });
                 },
 
                 activatePlugin: function(e) {
                     e.preventDefault();
+                    var self = this;
                     var button = $(e.target);
                     var plugin = button.data('plugin');
+                    var row = button.closest('tr');
 
                     button.text('Activating...').prop('disabled', true);
+                    var statusCell = row.find('.cwpk-status');
+                    statusCell.html('<span class="spinner is-active"></span> Activating...');
 
-                    // Add activation logic here
-                    alert('Activation functionality to be implemented for: ' + plugin);
-                    button.text('Activate').prop('disabled', false);
+                    $.post(ajaxurl, {
+                        action: 'cwpk_activate_plugin',
+                        plugin: plugin,
+                        security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            // Update status and action
+                            statusCell.html('<span class="dashicons dashicons-yes-alt"></span> Active');
+                            statusCell.removeClass('cwpk-status-inactive').addClass('cwpk-status-active');
+                            button.closest('td').html('<button class="button button-small" disabled>Installed</button>');
+
+                            // Update checkbox to disabled
+                            row.find('.cwpk-plugin-check').prop('disabled', true);
+
+                            // Update the plugin status in our data
+                            self.plugins.forEach(function(p) {
+                                if (p.slug === plugin) {
+                                    p.status = 'active';
+                                }
+                            });
+                        } else {
+                            button.text('Activate').prop('disabled', false);
+                            statusCell.html('<span class="dashicons dashicons-warning"></span> Error');
+                            alert('Activation failed: ' + response.data);
+                        }
+                    }).fail(function() {
+                        button.text('Activate').prop('disabled', false);
+                        statusCell.html('<span class="dashicons dashicons-warning"></span> Failed');
+                        alert('Activation failed. Please try again.');
+                    });
                 },
 
                 loadManifest: function() {
@@ -588,4 +750,6 @@ if (is_admin()) {
     // Register AJAX handlers
     add_action('wp_ajax_cwpk_get_manifest', array($cwpk_manifest_installer, 'ajax_get_manifest'));
     add_action('wp_ajax_cwpk_download_plugin', array($cwpk_manifest_installer, 'ajax_download_plugin'));
+    add_action('wp_ajax_cwpk_install_plugin', array($cwpk_manifest_installer, 'ajax_install_plugin'));
+    add_action('wp_ajax_cwpk_activate_plugin', array($cwpk_manifest_installer, 'ajax_activate_plugin'));
 }
