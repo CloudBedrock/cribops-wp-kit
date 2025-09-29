@@ -442,6 +442,71 @@ class CWPK_Manifest_Installer {
             $file_path = $target_dir . '/' . $plugin_slug . '.zip';
         }
 
+        // Special handling for Prime Mover - install from WordPress.org
+        if ($plugin_slug === 'prime-mover-pro' || $plugin_slug === 'prime-mover') {
+            // Install directly from WordPress.org repository
+            if (!function_exists('plugins_api')) {
+                include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+            }
+            if (!class_exists('WP_Ajax_Upgrader_Skin')) {
+                include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+                include_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
+            }
+
+            // Get plugin information from WordPress.org
+            $api = plugins_api('plugin_information', array(
+                'slug' => 'prime-mover',
+                'fields' => array(
+                    'short_description' => false,
+                    'sections' => false,
+                    'requires' => false,
+                    'rating' => false,
+                    'ratings' => false,
+                    'downloaded' => false,
+                    'last_updated' => false,
+                    'added' => false,
+                    'tags' => false,
+                    'homepage' => false,
+                    'donate_link' => false,
+                )
+            ));
+
+            if (is_wp_error($api)) {
+                wp_send_json_error('Failed to get Prime Mover from WordPress.org: ' . $api->get_error_message());
+            }
+
+            // Initialize WP_Filesystem
+            WP_Filesystem();
+
+            // Clean up any existing Prime Mover installations
+            $possible_dirs = array(
+                WP_PLUGIN_DIR . '/prime-mover',
+                WP_PLUGIN_DIR . '/prime-mover-pro'
+            );
+
+            foreach ($possible_dirs as $plugin_dir) {
+                if (is_dir($plugin_dir)) {
+                    $this->delete_directory($plugin_dir);
+                }
+            }
+
+            // Install from WordPress.org
+            $skin     = new WP_Ajax_Upgrader_Skin();
+            $upgrader = new Plugin_Upgrader($skin);
+            $result   = $upgrader->install($api->download_link);
+
+            if (is_wp_error($result)) {
+                wp_send_json_error('Installation failed: ' . $result->get_error_message());
+            } elseif (is_wp_error($skin->result)) {
+                wp_send_json_error('Installation process error: ' . $skin->result->get_error_message());
+            } elseif ($skin->get_errors()->has_errors()) {
+                wp_send_json_error('Installation errors: ' . implode(', ', $skin->get_error_messages()));
+            }
+
+            wp_send_json_success('Prime Mover installed successfully from WordPress.org.');
+            return;
+        }
+
         // If file doesn't exist, try to download it first
         if (!file_exists($file_path)) {
             // Get plugin data from manifest
