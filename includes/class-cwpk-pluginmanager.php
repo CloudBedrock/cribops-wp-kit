@@ -2,7 +2,7 @@
 /**
  * CribOps WP-Kit Plugin Manager
  *
- * Integrates bundled plugin updates from the "launchkit-updates" folder with WordPress's update flow.
+ * Integrates bundled plugin updates from the "cribops-wp-kit" folder with WordPress's update flow.
  * Version: 2.0.2
  */
 
@@ -36,7 +36,7 @@ class CWPKPluginManager {
         }
 
         $upload_dir = wp_upload_dir();
-        $this->update_dir = trailingslashit( $upload_dir['basedir'] ) . 'launchkit-updates';
+        $this->update_dir = trailingslashit( $upload_dir['basedir'] ) . 'cribops-wp-kit';
 
         // Ensure the update directory exists.
         if ( ! file_exists( $this->update_dir ) ) {
@@ -89,7 +89,7 @@ class CWPKPluginManager {
     }
 
     /**
-     * Scan the launchkit-updates directory for plugin ZIP files.
+     * Scan the cribops-wp-kit directory for plugin ZIP files.
      */
     private function scan_bundle_directory() {
         $zip_files = glob( $this->update_dir . '/*.zip' );

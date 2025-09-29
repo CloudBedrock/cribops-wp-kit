@@ -383,10 +383,10 @@ class CWPKInstaller {
 
                 $action_button = $is_installed
                     ? 'Installed'
-                    : "<button type='button' class='button install_button' data-url='" . esc_url(trailingslashit($upload_dir['baseurl']) . "launchkit-updates/" . basename($file)) . "'>Install</button>";
+                    : "<button type='button' class='button install_button' data-url='" . esc_url(trailingslashit($upload_dir['baseurl']) . "cribops-wp-kit/" . basename($file)) . "'>Install</button>";
 
                 $last_modified = date('Y-m-d', filemtime($file));
-                $download_link = esc_url(trailingslashit($upload_dir['baseurl']) . "launchkit-updates/" . basename($file));
+                $download_link = esc_url(trailingslashit($upload_dir['baseurl']) . "cribops-wp-kit/" . basename($file));
 
                 echo "<tr>";
                 echo "<td><input type='checkbox' class='plugin_checkbox' data-url='$download_link' data-slug='$plugin_slug'></td>";
@@ -558,8 +558,8 @@ class CWPKInstaller {
         }
 
         $upload_dir            = wp_upload_dir();
-        $launchkit_updates_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates/';
-        $file_path             = $launchkit_updates_dir . basename($plugin_url);
+        $cribops_updates_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit/';
+        $file_path             = $cribops_updates_dir . basename($plugin_url);
 
         if (! file_exists($file_path)) {
             wp_send_json_error('The file does not exist: ' . $file_path);
