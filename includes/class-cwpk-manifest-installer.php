@@ -274,9 +274,41 @@ class CWPK_Manifest_Installer {
             return $tmp_file;
         }
 
+        // Inspect the ZIP to determine actual slug
+        $actual_slug = $this->get_plugin_slug_from_zip($tmp_file);
+
+        // Check for slug mismatch
+        if ($actual_slug && $actual_slug !== $plugin_slug) {
+            // Log the mismatch for debugging
+            error_log(sprintf(
+                'CribOps WP-Kit: Slug mismatch detected! Expected: %s, Actual: %s, URL: %s',
+                $plugin_slug,
+                $actual_slug,
+                $url
+            ));
+
+            // Store mismatch info for reporting
+            $mismatches = get_option('cwpk_slug_mismatches', array());
+            $mismatches[$plugin_slug] = array(
+                'expected' => $plugin_slug,
+                'actual' => $actual_slug,
+                'url' => $url,
+                'detected' => current_time('mysql')
+            );
+            update_option('cwpk_slug_mismatches', $mismatches);
+
+            // Use the actual slug for the filename to ensure proper installation
+            $file_path = $target_dir . '/' . $actual_slug . '.zip';
+        }
+
         // Move to target directory
         if (rename($tmp_file, $file_path)) {
-            return array('success' => true, 'file' => $file_path);
+            return array(
+                'success' => true,
+                'file' => $file_path,
+                'actual_slug' => $actual_slug,
+                'mismatch' => ($actual_slug && $actual_slug !== $plugin_slug)
+            );
         }
 
         @unlink($tmp_file);
@@ -284,10 +316,62 @@ class CWPK_Manifest_Installer {
     }
 
     /**
+     * Get the actual plugin slug from a ZIP file
+     */
+    private function get_plugin_slug_from_zip($zip_file) {
+        if (!class_exists('ZipArchive')) {
+            return false;
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($zip_file) !== TRUE) {
+            return false;
+        }
+
+        // Get the first entry to determine the root folder
+        $first_entry = $zip->statIndex(0);
+        if (!$first_entry) {
+            $zip->close();
+            return false;
+        }
+
+        $name = $first_entry['name'];
+
+        // Extract the root folder name
+        $parts = explode('/', $name);
+        $root_folder = $parts[0];
+
+        // Clean up any trailing slashes
+        $root_folder = rtrim($root_folder, '/');
+
+        $zip->close();
+
+        // Return the root folder as the actual slug
+        return $root_folder;
+    }
+
+    /**
      * Extend timeout for large downloads
      */
     public function extend_timeout($timeout) {
         return 300; // 5 minutes
+    }
+
+    /**
+     * AJAX handler to clear a mismatch entry
+     */
+    public function ajax_clear_mismatch() {
+        check_ajax_referer('cwpk_manifest_nonce', 'security');
+
+        $slug = isset($_POST['slug']) ? sanitize_text_field($_POST['slug']) : '';
+
+        if ($slug) {
+            $mismatches = get_option('cwpk_slug_mismatches', array());
+            unset($mismatches[$slug]);
+            update_option('cwpk_slug_mismatches', $mismatches);
+        }
+
+        wp_send_json_success();
     }
 
     /**
@@ -323,6 +407,15 @@ class CWPK_Manifest_Installer {
             wp_send_json_error($result->get_error_message());
         }
 
+        // Add mismatch warning to response
+        if (isset($result['mismatch']) && $result['mismatch']) {
+            $result['warning'] = sprintf(
+                'Slug mismatch detected! Repository expects "%s" but plugin uses "%s". Please update the repository.',
+                $plugin_data['slug'],
+                $result['actual_slug']
+            );
+        }
+
         wp_send_json_success($result);
     }
 
@@ -333,6 +426,7 @@ class CWPK_Manifest_Installer {
         check_ajax_referer('cwpk_manifest_nonce', 'security');
 
         $plugin_slug = isset($_POST['plugin']) ? sanitize_text_field($_POST['plugin']) : '';
+        $actual_slug = isset($_POST['actual_slug']) ? sanitize_text_field($_POST['actual_slug']) : $plugin_slug;
 
         if (!$plugin_slug) {
             wp_send_json_error('No plugin specified');
@@ -341,7 +435,12 @@ class CWPK_Manifest_Installer {
         // Check if file exists in download directory
         $upload_dir = wp_upload_dir();
         $target_dir = trailingslashit($upload_dir['basedir']) . 'launchkit-updates';
-        $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+
+        // Try the actual slug first, then the expected slug
+        $file_path = $target_dir . '/' . $actual_slug . '.zip';
+        if (!file_exists($file_path)) {
+            $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+        }
 
         if (!file_exists($file_path)) {
             wp_send_json_error('Plugin file not found. Please download it first.');
@@ -488,6 +587,59 @@ class CWPK_Manifest_Installer {
     }
 
     /**
+     * Display slug mismatches for admin attention
+     */
+    private function display_slug_mismatches() {
+        $mismatches = get_option('cwpk_slug_mismatches', array());
+
+        if (empty($mismatches)) {
+            return;
+        }
+
+        ?>
+        <div class="notice notice-warning">
+            <h3>⚠️ Plugin Slug Mismatches Detected</h3>
+            <p>The following plugins have mismatched slugs that need to be updated in the repository:</p>
+            <table class="widefat">
+                <thead>
+                    <tr>
+                        <th>Expected Slug</th>
+                        <th>Actual Slug</th>
+                        <th>Detected</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($mismatches as $slug => $data) : ?>
+                    <tr>
+                        <td><code><?php echo esc_html($data['expected']); ?></code></td>
+                        <td><code><?php echo esc_html($data['actual']); ?></code></td>
+                        <td><?php echo esc_html($data['detected']); ?></td>
+                        <td>
+                            <button class="button button-small cwpk-clear-mismatch" data-slug="<?php echo esc_attr($slug); ?>">Clear</button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            <p><strong>Action Required:</strong> Please update the repository to use the actual slugs shown above.</p>
+        </div>
+        <script>
+        jQuery('.cwpk-clear-mismatch').click(function() {
+            var slug = jQuery(this).data('slug');
+            jQuery.post(ajaxurl, {
+                action: 'cwpk_clear_mismatch',
+                slug: slug,
+                security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
+            }, function() {
+                location.reload();
+            });
+        });
+        </script>
+        <?php
+    }
+
+    /**
      * Display manifest-based installer UI
      */
     public function display_manifest_installer() {
@@ -497,6 +649,9 @@ class CWPK_Manifest_Installer {
             echo '<p>Please log in to view available plugins.</p>';
             return;
         }
+
+        // Display any slug mismatches
+        $this->display_slug_mismatches();
 
         ?>
         <div id="cwpk-manifest-installer">
@@ -565,9 +720,12 @@ class CWPK_Manifest_Installer {
                     var statusCell = row.find('.cwpk-status');
                     statusCell.html('<span class="spinner is-active"></span> Installing...');
 
+                    var actualSlug = button.data('actual-slug') || plugin;
+
                     $.post(ajaxurl, {
                         action: 'cwpk_install_plugin',
                         plugin: plugin,
+                        actual_slug: actualSlug,
                         security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
                     }, function(response) {
                         if (response.success) {
@@ -840,8 +998,22 @@ class CWPK_Manifest_Installer {
                         if (response.success) {
                             plugin.local = true;
                             plugin.status = 'downloaded';
+
+                            // Store actual slug if different
+                            if (response.data.actual_slug) {
+                                plugin.actual_slug = response.data.actual_slug;
+                            }
+
+                            // Show warning if there's a mismatch
+                            if (response.data.warning) {
+                                alert('WARNING: ' + response.data.warning);
+                                console.error('CribOps WP-Kit:', response.data.warning);
+                            }
+
                             statusCell.html('<span class="dashicons dashicons-download"></span> Downloaded');
-                            $('.cwpk-action-' + plugin.slug).html('<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '">Install</button>' +
+
+                            var actualSlug = response.data.actual_slug || plugin.slug;
+                            $('.cwpk-action-' + plugin.slug).html('<button class="button button-small cwpk-install" data-plugin="' + plugin.slug + '" data-actual-slug="' + actualSlug + '">Install</button>' +
                                 ' <button class="button button-small cwpk-redownload" data-plugin-index="' + pluginIndex + '">Re-download</button>');
                         } else {
                             button.text('Download').prop('disabled', false);
@@ -966,4 +1138,5 @@ if (is_admin()) {
     add_action('wp_ajax_cwpk_activate_plugin', array($cwpk_manifest_installer, 'ajax_activate_plugin'));
     add_action('wp_ajax_cwpk_deactivate_plugin', array($cwpk_manifest_installer, 'ajax_deactivate_plugin'));
     add_action('wp_ajax_cwpk_delete_plugin', array($cwpk_manifest_installer, 'ajax_delete_plugin'));
+    add_action('wp_ajax_cwpk_clear_mismatch', array($cwpk_manifest_installer, 'ajax_clear_mismatch'));
 }
