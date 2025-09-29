@@ -781,7 +781,7 @@ class CWPKInstaller {
     }
 
     /**
-     * Show a LaunchKit banner on Prime Mover admin pages
+     * Show a CribOps WP-Kit banner on Prime Mover admin pages
      */
     public function launchkit_banner_on_prime_mover_backup_menu() {
         $current_screen = get_current_screen();
@@ -801,8 +801,8 @@ class CWPKInstaller {
             ?>
             <div class="launchkit-banner">
                 <div class="launchkit-banner-content">
-                    <a href="<?php echo admin_url('admin.php?page=launchkit-packages'); ?>" class="button button-primary">Browse LaunchKit Packages</a>
-                    <span class="launchkit-banner-text">Then Launch In A Minute!</span>
+                    <a href="<?php echo admin_url('admin.php?page=launchkit-packages'); ?>" class="button button-primary">Browse CribOps WP-Kit Packages</a>
+                    <span class="launchkit-banner-text">Launch in Seconds!</span>
                 </div>
             </div>
             <style>
@@ -850,7 +850,7 @@ class CWPKInstaller {
 
         ?>
         <div class="wrap">
-            <h1>Install LaunchKit Packages</h1>
+            <h1>Install CribOps WP-Kit Packages</h1>
             <div id="launchkit_package_notice" style="display: none;"></div>
             <?php if ($prime_mover_installed) : ?>
                 <a class="button" href="<?php echo admin_url('admin.php?page=migration-panel-backup-menu'); ?>">View Your Installed Packages</a>
@@ -1008,7 +1008,7 @@ class CWPKInstaller {
                 return ['success' => false, 'message' => 'Error saving file to directory.'];
             }
         }
-        return ['success' => false, 'message' => 'Access denied. You do not have permission to download LaunchKit packages.'];
+        return ['success' => false, 'message' => 'Access denied. You do not have permission to download CribOps WP-Kit packages.'];
     }
 
     /**
