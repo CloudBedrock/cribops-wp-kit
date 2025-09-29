@@ -442,19 +442,63 @@ class CWPK_Manifest_Installer {
             $file_path = $target_dir . '/' . $plugin_slug . '.zip';
         }
 
+        // If file doesn't exist, try to download it first
         if (!file_exists($file_path)) {
-            wp_send_json_error('Plugin file not found. Please download it first.');
+            // Get plugin data from manifest
+            $manifest = $this->get_plugin_manifest();
+            if (is_wp_error($manifest)) {
+                wp_send_json_error('Failed to get plugin list: ' . $manifest->get_error_message());
+            }
+
+            $plugin_data = null;
+            foreach ($manifest as $plugin) {
+                if ($plugin['slug'] === $plugin_slug) {
+                    $plugin_data = $plugin;
+                    break;
+                }
+            }
+
+            if (!$plugin_data) {
+                wp_send_json_error('Plugin not found in repository.');
+            }
+
+            // Download the plugin
+            $download_result = $this->download_plugin($plugin_data);
+            if (is_wp_error($download_result)) {
+                wp_send_json_error('Failed to download plugin: ' . $download_result->get_error_message());
+            }
+
+            // Update file path after download
+            $file_path = isset($download_result['file']) ? $download_result['file'] : $target_dir . '/' . $plugin_slug . '.zip';
+
+            if (!file_exists($file_path)) {
+                wp_send_json_error('Plugin downloaded but file not found.');
+            }
         }
 
         // Install the plugin
         WP_Filesystem();
-        $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
 
-        // Remove existing folder if any
-        if (is_dir($plugin_dir)) {
-            $this->delete_directory($plugin_dir);
+        // First, detect the actual folder name from the ZIP
+        $actual_plugin_slug = $this->get_plugin_slug_from_zip($file_path);
+        if (!$actual_plugin_slug) {
+            $actual_plugin_slug = $plugin_slug; // Fallback to expected slug
         }
 
+        // Check both possible plugin directories and remove if they exist
+        $possible_dirs = array(
+            WP_PLUGIN_DIR . '/' . $actual_plugin_slug,
+            WP_PLUGIN_DIR . '/' . $plugin_slug,
+            WP_PLUGIN_DIR . '/' . $actual_slug
+        );
+
+        foreach (array_unique($possible_dirs) as $plugin_dir) {
+            if (is_dir($plugin_dir)) {
+                $this->delete_directory($plugin_dir);
+            }
+        }
+
+        // Now unzip the file
         $result = unzip_file($file_path, WP_PLUGIN_DIR);
 
         if (is_wp_error($result)) {
@@ -570,20 +614,42 @@ class CWPK_Manifest_Installer {
     }
 
     /**
-     * Delete directory recursively
+     * Delete directory recursively using WP Filesystem
      */
     private function delete_directory($dir) {
+        global $wp_filesystem;
+
         if (!is_dir($dir)) {
-            return;
+            return true;
         }
-        $objects = scandir($dir);
+
+        // Initialize WP_Filesystem if needed
+        if (!$wp_filesystem) {
+            WP_Filesystem();
+        }
+
+        // Use WP Filesystem API if available
+        if ($wp_filesystem && method_exists($wp_filesystem, 'delete')) {
+            return $wp_filesystem->delete($dir, true);
+        }
+
+        // Fallback to manual deletion
+        $objects = @scandir($dir);
+        if ($objects === false) {
+            return false;
+        }
+
         foreach ($objects as $object) {
             if ($object !== '.' && $object !== '..') {
                 $file = $dir . '/' . $object;
-                is_dir($file) ? $this->delete_directory($file) : unlink($file);
+                if (is_dir($file)) {
+                    $this->delete_directory($file);
+                } else {
+                    @unlink($file);
+                }
             }
         }
-        rmdir($dir);
+        return @rmdir($dir);
     }
 
     /**
