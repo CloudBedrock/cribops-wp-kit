@@ -843,20 +843,30 @@ class CWPKInstaller {
         }
 
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
-        $launchkit_package_url = isset($user_data['launchkit_package_url']) ? $user_data['launchkit_package_url'] : '';
-        $package_one_url       = isset($user_data['package_one_url']) ? $user_data['package_one_url'] : '';
-        $package_two_url       = isset($user_data['package_two_url']) ? $user_data['package_two_url'] : '';
-        $package_three_url     = isset($user_data['package_three_url']) ? $user_data['package_three_url'] : '';
 
-        // Get package images from API or use placeholders
-        $package_one_image   = isset($user_data['package_one_image']) ? $user_data['package_one_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+1';
-        $package_two_image   = isset($user_data['package_two_image']) ? $user_data['package_two_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+2';
-        $package_three_image = isset($user_data['package_three_image']) ? $user_data['package_three_image'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+3';
+        // Get packages array from API or create defaults
+        $packages = isset($user_data['packages']) && is_array($user_data['packages']) ? $user_data['packages'] : array();
 
-        // Get package names from API or use defaults
-        $package_one_name   = isset($user_data['package_one_name']) ? $user_data['package_one_name'] : 'Package 1';
-        $package_two_name   = isset($user_data['package_two_name']) ? $user_data['package_two_name'] : 'Package 2';
-        $package_three_name = isset($user_data['package_three_name']) ? $user_data['package_three_name'] : 'Package 3';
+        // If no packages from API, create defaults with the old URL fields for backwards compatibility
+        if (empty($packages)) {
+            $packages = array(
+                array(
+                    'name' => 'Package 1',
+                    'url' => isset($user_data['package_one_url']) ? $user_data['package_one_url'] : '',
+                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+1'
+                ),
+                array(
+                    'name' => 'Package 2',
+                    'url' => isset($user_data['package_two_url']) ? $user_data['package_two_url'] : '',
+                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+2'
+                ),
+                array(
+                    'name' => 'Package 3',
+                    'url' => isset($user_data['package_three_url']) ? $user_data['package_three_url'] : '',
+                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+3'
+                )
+            );
+        }
 
         ?>
         <div class="wrap">
@@ -869,24 +879,18 @@ class CWPKInstaller {
             <!-- Package Selection -->
             <h3>Select Package</h3>
             <div class="package-selection-row">
+                <?php foreach ($packages as $index => $package) :
+                    $package_name = isset($package['name']) ? $package['name'] : 'Package ' . ($index + 1);
+                    $package_url = isset($package['url']) ? $package['url'] : '';
+                    $thumbnail_url = isset($package['thumbnail_url']) ? $package['thumbnail_url'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
+                ?>
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
-                        <img src="<?php echo esc_url($package_one_image); ?>" alt="<?php echo esc_attr($package_one_name); ?>" class="package-image">
+                        <img src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php echo esc_attr($package_name); ?>" class="package-image">
                     </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_one_url); ?>">Upload <?php echo esc_html($package_one_name); ?></button>
+                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
                 </div>
-                <div class="package-selection-column">
-                    <div class="package-image-wrapper">
-                        <img src="<?php echo esc_url($package_two_image); ?>" alt="<?php echo esc_attr($package_two_name); ?>" class="package-image">
-                    </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_two_url); ?>">Upload <?php echo esc_html($package_two_name); ?></button>
-                </div>
-                <div class="package-selection-column">
-                    <div class="package-image-wrapper">
-                        <img src="<?php echo esc_url($package_three_image); ?>" alt="<?php echo esc_attr($package_three_name); ?>" class="package-image">
-                    </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_three_url); ?>">Upload <?php echo esc_html($package_three_name); ?></button>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <!-- Custom Package Upload -->
