@@ -201,12 +201,21 @@ class CWPKInstaller {
                 }, function(response) {
                     if (response.success) {
                         button.text('Prime Mover Installed').prop('disabled', true);
+                        if (response.data && response.data.message) {
+                            alert(response.data.message);
+                        }
                         location.reload();
                     } else {
                         button.text('Installation Failed').prop('disabled', false);
+                        if (response.data) {
+                            alert('Installation Error: ' + response.data);
+                            console.error('Prime Mover installation error:', response.data);
+                        }
                     }
-                }).fail(function() {
+                }).fail(function(jqXHR, textStatus, errorThrown) {
                     button.text('Installation Failed').prop('disabled', false);
+                    alert('Request failed: ' + textStatus + ' - ' + errorThrown);
+                    console.error('AJAX error:', textStatus, errorThrown);
                 });
             });
 
@@ -636,33 +645,75 @@ class CWPKInstaller {
     public function install_prime_mover_callback() {
         check_ajax_referer('install_prime_mover_nonce', 'security');
 
-        if (file_exists(WP_PLUGIN_DIR . '/prime-mover/prime-mover.php')) {
-            activate_plugin('prime-mover/prime-mover.php');
-            $this->skip_prime_mover_activation_script();
-            wp_send_json_success();
+        // Use WP_PLUGIN_DIR if defined, otherwise construct it from ABSPATH
+        if (defined('WP_PLUGIN_DIR')) {
+            $plugins_dir = WP_PLUGIN_DIR;
         } else {
-            include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
-            include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+            $plugins_dir = ABSPATH . 'wp-content/plugins';
+        }
 
-            $api = plugins_api('plugin_information', array('slug' => 'prime-mover'));
-            if (is_wp_error($api)) {
-                wp_send_json_error($api->get_error_message());
+        $plugin_file = 'prime-mover/prime-mover.php';
+        $plugin_path = $plugins_dir . '/' . $plugin_file;
+
+        // Check if already installed
+        if (file_exists($plugin_path)) {
+            $result = activate_plugin($plugin_file);
+            if (is_wp_error($result)) {
+                wp_send_json_error('Plugin exists but activation failed: ' . $result->get_error_message());
+            }
+            $this->skip_prime_mover_activation_script();
+            wp_send_json_success(array('message' => 'Plugin was already installed and has been activated.'));
+        } else {
+            // Include necessary files
+            if (!function_exists('plugins_api')) {
+                include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+            }
+            if (!class_exists('WP_Ajax_Upgrader_Skin')) {
+                include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+                include_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
             }
 
+            // Get plugin information from WordPress.org
+            $api = plugins_api('plugin_information', array(
+                'slug' => 'prime-mover',
+                'fields' => array(
+                    'short_description' => false,
+                    'sections' => false,
+                    'requires' => false,
+                    'rating' => false,
+                    'ratings' => false,
+                    'downloaded' => false,
+                    'last_updated' => false,
+                    'added' => false,
+                    'tags' => false,
+                    'homepage' => false,
+                    'donate_link' => false,
+                )
+            ));
+
+            if (is_wp_error($api)) {
+                wp_send_json_error('Failed to get plugin information from WordPress.org: ' . $api->get_error_message());
+            }
+
+            // Install the plugin
             $skin     = new WP_Ajax_Upgrader_Skin();
             $upgrader = new Plugin_Upgrader($skin);
             $result   = $upgrader->install($api->download_link);
 
             if (is_wp_error($result)) {
-                wp_send_json_error($result->get_error_message());
+                wp_send_json_error('Installation failed: ' . $result->get_error_message());
             } elseif (is_wp_error($skin->result)) {
-                wp_send_json_error($skin->result->get_error_message());
+                wp_send_json_error('Installation process error: ' . $skin->result->get_error_message());
             } elseif ($skin->get_errors()->has_errors()) {
-                wp_send_json_error($skin->get_error_messages());
+                wp_send_json_error('Installation errors: ' . implode(', ', $skin->get_error_messages()));
             } else {
-                activate_plugin('prime-mover/prime-mover.php');
+                // Activate the plugin
+                $activation_result = activate_plugin($plugin_file);
+                if (is_wp_error($activation_result)) {
+                    wp_send_json_error('Plugin installed but activation failed: ' . $activation_result->get_error_message());
+                }
                 $this->skip_prime_mover_activation_script();
-                wp_send_json_success();
+                wp_send_json_success(array('message' => 'Prime Mover installed and activated successfully.'));
             }
         }
     }
