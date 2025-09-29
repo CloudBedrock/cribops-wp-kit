@@ -23,8 +23,9 @@ class CWPK_Manifest_Installer {
         }
 
         // Call the API to get plugin manifest
+        $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
         $response = wp_remote_get(
-            CWPK_Config::get_api_url() . '/api/wp-kit/plugins',
+            $api_url . '/api/wp-kit/plugins',
             array(
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $user_data['email'], // Email is used as API token
@@ -177,8 +178,9 @@ class CWPK_Manifest_Installer {
         // If no direct URL, try API endpoint
         if (empty($download_url) && !empty($plugin_data['slug'])) {
             // Get download URL from API
+            $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
             $response = wp_remote_get(
-                CWPK_Config::get_api_url() . '/api/wp-kit/plugins/' . $plugin_data['slug'] . '/download',
+                $api_url . '/api/wp-kit/plugins/' . $plugin_data['slug'] . '/download',
                 array(
                     'headers' => array(
                         'Authorization' => 'Bearer ' . $user_data['email'] // Email is used as API token
@@ -579,13 +581,11 @@ class CWPK_Manifest_Installer {
     }
 }
 
-// Initialize
-add_action('init', function() {
-    if (is_admin()) {
-        $manifest_installer = new CWPK_Manifest_Installer();
+// Initialize AJAX handlers when this class is loaded
+if (is_admin()) {
+    $cwpk_manifest_installer = new CWPK_Manifest_Installer();
 
-        // Register AJAX handlers
-        add_action('wp_ajax_cwpk_get_manifest', array($manifest_installer, 'ajax_get_manifest'));
-        add_action('wp_ajax_cwpk_download_plugin', array($manifest_installer, 'ajax_download_plugin'));
-    }
-});
+    // Register AJAX handlers
+    add_action('wp_ajax_cwpk_get_manifest', array($cwpk_manifest_installer, 'ajax_get_manifest'));
+    add_action('wp_ajax_cwpk_download_plugin', array($cwpk_manifest_installer, 'ajax_download_plugin'));
+}
