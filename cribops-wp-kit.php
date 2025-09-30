@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.43
+ * Version:     1.0.44
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.43';
+        const VERSION = '1.0.44';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -607,6 +607,16 @@ if (!class_exists('CribOpsWPKit')) {
             return $active_plugins;
         }
 
+        /**
+         * Prevent WordPress from validating the virtual plugin file
+         */
+        public function validate_dependency_bypass_plugin($is_valid, $plugin_file) {
+            if ($plugin_file === 'cwpk-dependency-bypass/cwpk-dependency-bypass.php') {
+                return true; // Always report as valid
+            }
+            return $is_valid;
+        }
+
         public function lk_add_deactivate_link($actions, $plugin_file) {
             if(isset($actions['deactivate'])) {
                 $actions['deactivate'] = str_replace('class="edit-plugin"', '', $actions['deactivate']);
@@ -815,6 +825,9 @@ if (!class_exists('CribOpsWPKit')) {
                 // Add virtual plugin to plugins list
                 add_filter('all_plugins', array($this, 'add_dependency_bypass_virtual_plugin'));
                 add_filter('option_active_plugins', array($this, 'add_dependency_bypass_to_active_plugins'));
+
+                // Prevent WordPress from checking if the virtual plugin file exists
+                add_filter('validate_plugin', array($this, 'validate_dependency_bypass_plugin'), 10, 2);
             }
 
             if (isset($options['cwpk_checkbox_field_004']) && $options['cwpk_checkbox_field_004'] == '1') {
