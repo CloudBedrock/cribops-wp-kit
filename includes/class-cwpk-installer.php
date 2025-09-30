@@ -868,6 +868,11 @@ class CWPKInstaller {
             );
         }
 
+        // Debug: Show what we're getting from the API
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            echo '<!-- Debug: Package data from API: ' . esc_html(json_encode($packages)) . ' -->';
+        }
+
         ?>
         <div class="wrap">
             <h1>Install CribOps WP-Kit Packages</h1>
@@ -878,6 +883,12 @@ class CWPKInstaller {
 
             <!-- Package Selection -->
             <h3>Select Package</h3>
+            <?php
+            // Temporary debug to see what packages we have
+            if (empty($packages)) {
+                echo '<div class="notice notice-warning"><p>No packages found from API. Using defaults.</p></div>';
+            }
+            ?>
             <div class="package-selection-row">
                 <?php foreach ($packages as $index => $package) :
                     $package_name = isset($package['name']) ? $package['name'] : 'Package ' . ($index + 1);
@@ -890,13 +901,17 @@ class CWPKInstaller {
                         // Use placeholder image with package name
                         $thumbnail_url = 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
                     }
+
+                    // Debug output for each package
+                    echo '<!-- Package ' . ($index + 1) . ' - Name: ' . esc_html($package_name) . ', Thumbnail: ' . esc_html($thumbnail_url) . ' -->';
                 ?>
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
                         <img src="<?php echo esc_url($thumbnail_url); ?>"
                              alt="<?php echo esc_attr($package_name); ?>"
                              class="package-image"
-                             onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';">
+                             onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';"
+                             title="Image URL: <?php echo esc_attr($thumbnail_url); ?>">
                     </div>
                     <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
                 </div>
