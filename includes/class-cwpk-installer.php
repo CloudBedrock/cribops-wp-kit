@@ -882,11 +882,21 @@ class CWPKInstaller {
                 <?php foreach ($packages as $index => $package) :
                     $package_name = isset($package['name']) ? $package['name'] : 'Package ' . ($index + 1);
                     $package_url = isset($package['url']) ? $package['url'] : '';
-                    $thumbnail_url = isset($package['thumbnail_url']) ? $package['thumbnail_url'] : 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
+
+                    // Check for thumbnail_url and provide fallback
+                    if (isset($package['thumbnail_url']) && !empty($package['thumbnail_url'])) {
+                        $thumbnail_url = $package['thumbnail_url'];
+                    } else {
+                        // Use placeholder image with package name
+                        $thumbnail_url = 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
+                    }
                 ?>
                 <div class="package-selection-column">
                     <div class="package-image-wrapper">
-                        <img src="<?php echo esc_url($thumbnail_url); ?>" alt="<?php echo esc_attr($package_name); ?>" class="package-image">
+                        <img src="<?php echo esc_url($thumbnail_url); ?>"
+                             alt="<?php echo esc_attr($package_name); ?>"
+                             class="package-image"
+                             onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';">
                     </div>
                     <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
                 </div>
