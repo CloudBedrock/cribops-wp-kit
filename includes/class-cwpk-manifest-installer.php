@@ -265,21 +265,30 @@ class CWPK_Manifest_Installer {
             @rename($file_path, $file_path . '.backup');
         }
 
+        // Log the download attempt
+        error_log('CribOps WP-Kit: Attempting to download from URL: ' . $url);
+
         // Use WordPress download function with increased timeout
         add_filter('http_request_timeout', array($this, 'extend_timeout'));
         $tmp_file = download_url($url, 300); // 5 minute timeout
         remove_filter('http_request_timeout', array($this, 'extend_timeout'));
 
         if (is_wp_error($tmp_file)) {
+            error_log('CribOps WP-Kit: download_url failed: ' . $tmp_file->get_error_message());
             return $tmp_file;
         }
+
+        error_log('CribOps WP-Kit: Downloaded to temp file: ' . $tmp_file . ' (size: ' . filesize($tmp_file) . ' bytes)');
 
         // Validate that the downloaded file is actually a ZIP file
         $validation_result = $this->validate_zip_file($tmp_file);
         if (is_wp_error($validation_result)) {
+            error_log('CribOps WP-Kit: Validation failed: ' . $validation_result->get_error_message());
             @unlink($tmp_file);
             return $validation_result;
         }
+
+        error_log('CribOps WP-Kit: Validation passed for: ' . $plugin_slug);
 
         // Inspect the ZIP to determine actual slug
         $actual_slug = $this->get_plugin_slug_from_zip($tmp_file);
