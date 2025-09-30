@@ -217,10 +217,32 @@ class CWPK_Manifest_Installer {
                 $headers = wp_remote_retrieve_headers($response);
                 $download_url = isset($headers['location']) ? $headers['location'] : '';
             } else {
-                // If direct response, save the body
+                // If direct response, save the body to temp file first for validation
                 $body = wp_remote_retrieve_body($response);
 
                 if ($body) {
+                    // Save to temp file first
+                    $tmp_file = wp_tempnam();
+                    if (!$tmp_file) {
+                        return new WP_Error('temp_file_failed', 'Could not create temporary file');
+                    }
+
+                    if (!file_put_contents($tmp_file, $body)) {
+                        @unlink($tmp_file);
+                        return new WP_Error('temp_write_failed', 'Could not write to temporary file');
+                    }
+
+                    error_log('CribOps WP-Kit: API returned direct response for ' . $plugin_data['slug'] . ' (size: ' . strlen($body) . ' bytes)');
+
+                    // Validate the downloaded content
+                    $validation_result = $this->validate_zip_file($tmp_file);
+                    if (is_wp_error($validation_result)) {
+                        error_log('CribOps WP-Kit: Validation failed for API response: ' . $validation_result->get_error_message());
+                        @unlink($tmp_file);
+                        return $validation_result;
+                    }
+
+                    // Validation passed, move to final location
                     $upload_dir = wp_upload_dir();
                     $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
 
@@ -230,12 +252,16 @@ class CWPK_Manifest_Installer {
 
                     $file_path = $target_dir . '/' . $plugin_data['slug'] . '.zip';
 
-                    if (file_put_contents($file_path, $body)) {
+                    if (rename($tmp_file, $file_path)) {
+                        error_log('CribOps WP-Kit: Successfully saved validated file to: ' . $file_path);
                         return array('success' => true, 'file' => $file_path);
+                    } else {
+                        @unlink($tmp_file);
+                        return new WP_Error('move_failed', 'Failed to move validated file to final location');
                     }
                 }
 
-                return new WP_Error('download_failed', 'Failed to download plugin');
+                return new WP_Error('download_failed', 'Failed to download plugin - empty response body');
             }
         }
 
