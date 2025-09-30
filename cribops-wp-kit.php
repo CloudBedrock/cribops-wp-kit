@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.44
+ * Version:     1.0.45
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.44';
+        const VERSION = '1.0.45';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -39,6 +39,7 @@ if (!class_exists('CribOpsWPKit')) {
             add_action('init', array($this, 'cwpk_apply_settings'));
             add_action('wp_enqueue_scripts', array($this, 'cwpk_add_public_style'), 999);
             add_action('admin_footer', array($this, 'add_select_all_script'));
+            add_action('admin_init', array($this, 'clear_virtual_plugin_errors'));
 
             // Login/Logout handlers
             add_action('admin_post_cwpk_login', array($this, 'cwpk_handle_login'));
@@ -617,6 +618,54 @@ if (!class_exists('CribOpsWPKit')) {
             return $is_valid;
         }
 
+        /**
+         * Prevent WordPress from checking if virtual plugin file exists
+         */
+        public function virtual_plugin_file_exists($exists, $file) {
+            if (strpos($file, 'cwpk-dependency-bypass/cwpk-dependency-bypass.php') !== false) {
+                return true;
+            }
+            return $exists;
+        }
+
+        /**
+         * Remove virtual plugin from active plugins validation check
+         */
+        public function filter_validate_active_plugins($plugins) {
+            return array_diff($plugins, array('cwpk-dependency-bypass/cwpk-dependency-bypass.php'));
+        }
+
+        /**
+         * Clear any stored errors about the virtual plugin
+         */
+        public function clear_virtual_plugin_errors() {
+            // Remove from the list of plugins that were deactivated due to errors
+            $deactivated = get_option('active_plugins_before_deactivation', array());
+            if (is_array($deactivated)) {
+                $key = array_search('cwpk-dependency-bypass/cwpk-dependency-bypass.php', $deactivated);
+                if ($key !== false) {
+                    unset($deactivated[$key]);
+                    update_option('active_plugins_before_deactivation', $deactivated);
+                }
+            }
+
+            // Clear from active_plugins option if it shouldn't be there
+            $active = get_option('active_plugins', array());
+            if (is_array($active)) {
+                $options = get_option('cwpk_settings');
+                $bypass_enabled = isset($options['cwpk_checkbox_field_003']) && $options['cwpk_checkbox_field_003'] == '1';
+
+                if (!$bypass_enabled) {
+                    // Remove virtual plugin if setting is disabled
+                    $key = array_search('cwpk-dependency-bypass/cwpk-dependency-bypass.php', $active);
+                    if ($key !== false) {
+                        unset($active[$key]);
+                        update_option('active_plugins', array_values($active));
+                    }
+                }
+            }
+        }
+
         public function lk_add_deactivate_link($actions, $plugin_file) {
             if(isset($actions['deactivate'])) {
                 $actions['deactivate'] = str_replace('class="edit-plugin"', '', $actions['deactivate']);
@@ -828,6 +877,8 @@ if (!class_exists('CribOpsWPKit')) {
 
                 // Prevent WordPress from checking if the virtual plugin file exists
                 add_filter('validate_plugin', array($this, 'validate_dependency_bypass_plugin'), 10, 2);
+                add_filter('file_exists', array($this, 'virtual_plugin_file_exists'), 10, 2);
+                add_filter('validate_active_plugins', array($this, 'filter_validate_active_plugins'));
             }
 
             if (isset($options['cwpk_checkbox_field_004']) && $options['cwpk_checkbox_field_004'] == '1') {
