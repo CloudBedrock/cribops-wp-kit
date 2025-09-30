@@ -725,13 +725,36 @@ class CWPK_Manifest_Installer {
             }
         }
 
+        // Validate the ZIP one more time before unzipping
+        $final_validation = $this->validate_zip_file($file_path);
+        if (is_wp_error($final_validation)) {
+            error_log('CribOps WP-Kit: Final validation failed before unzip: ' . $final_validation->get_error_message());
+            wp_send_json_error('Installation failed: Invalid ZIP file - ' . $final_validation->get_error_message());
+        }
+
         // Now unzip the file
+        error_log('CribOps WP-Kit: Attempting to unzip: ' . $file_path . ' to ' . WP_PLUGIN_DIR);
         $result = unzip_file($file_path, WP_PLUGIN_DIR);
 
         if (is_wp_error($result)) {
-            wp_send_json_error('Installation failed: ' . $result->get_error_message());
+            error_log('CribOps WP-Kit: Unzip failed: ' . $result->get_error_message() . ' (Code: ' . $result->get_error_code() . ')');
+
+            // Provide more detailed error message
+            $error_msg = 'Installation failed: ' . $result->get_error_message();
+
+            // Check if file still exists and is readable
+            if (!file_exists($file_path)) {
+                $error_msg .= ' - File disappeared during installation.';
+            } elseif (!is_readable($file_path)) {
+                $error_msg .= ' - File is not readable.';
+            } else {
+                $error_msg .= ' - File exists and is ' . filesize($file_path) . ' bytes.';
+            }
+
+            wp_send_json_error($error_msg);
         }
 
+        error_log('CribOps WP-Kit: Successfully unzipped plugin: ' . $plugin_slug);
         wp_send_json_success('Plugin installed successfully.');
     }
 
