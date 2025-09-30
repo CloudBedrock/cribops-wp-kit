@@ -844,29 +844,8 @@ class CWPKInstaller {
 
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
 
-        // Get packages array from API or create defaults
+        // Get packages array from API
         $packages = isset($user_data['packages']) && is_array($user_data['packages']) ? $user_data['packages'] : array();
-
-        // If no packages from API, create defaults with the old URL fields for backwards compatibility
-        if (empty($packages)) {
-            $packages = array(
-                array(
-                    'name' => 'Package 1',
-                    'url' => isset($user_data['package_one_url']) ? $user_data['package_one_url'] : '',
-                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+1'
-                ),
-                array(
-                    'name' => 'Package 2',
-                    'url' => isset($user_data['package_two_url']) ? $user_data['package_two_url'] : '',
-                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+2'
-                ),
-                array(
-                    'name' => 'Package 3',
-                    'url' => isset($user_data['package_three_url']) ? $user_data['package_three_url'] : '',
-                    'thumbnail_url' => 'https://via.placeholder.com/300x200/0073aa/ffffff?text=Package+3'
-                )
-            );
-        }
 
         // Debug: Show what we're getting from the API
         if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -883,40 +862,43 @@ class CWPKInstaller {
 
             <!-- Package Selection -->
             <h3>Select Package</h3>
-            <?php
-            // Temporary debug to see what packages we have
-            if (empty($packages)) {
-                echo '<div class="notice notice-warning"><p>No packages found from API. Using defaults.</p></div>';
-            }
-            ?>
-            <div class="package-selection-row">
-                <?php foreach ($packages as $index => $package) :
-                    $package_name = isset($package['name']) ? $package['name'] : 'Package ' . ($index + 1);
-                    $package_url = isset($package['url']) ? $package['url'] : '';
-
-                    // Check for thumbnail_url and provide fallback
-                    if (isset($package['thumbnail_url']) && !empty($package['thumbnail_url'])) {
-                        $thumbnail_url = $package['thumbnail_url'];
-                    } else {
-                        // Use placeholder image with package name
-                        $thumbnail_url = 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
-                    }
-
-                    // Debug output for each package
-                    echo '<!-- Package ' . ($index + 1) . ' - Name: ' . esc_html($package_name) . ', Thumbnail: ' . esc_html($thumbnail_url) . ' -->';
-                ?>
-                <div class="package-selection-column">
-                    <div class="package-image-wrapper">
-                        <img src="<?php echo esc_url($thumbnail_url); ?>"
-                             alt="<?php echo esc_attr($package_name); ?>"
-                             class="package-image"
-                             onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';"
-                             title="Image URL: <?php echo esc_attr($thumbnail_url); ?>">
-                    </div>
-                    <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
+            <?php if (empty($packages)) : ?>
+                <div class="notice notice-info">
+                    <p><strong>No packages currently available.</strong></p>
+                    <p>Please check back later or contact your administrator for available packages.</p>
                 </div>
-                <?php endforeach; ?>
-            </div>
+            <?php else : ?>
+                <div class="package-selection-row">
+                    <?php foreach ($packages as $index => $package) :
+                        $package_name = isset($package['name']) ? $package['name'] : 'Package ' . ($index + 1);
+                        $package_url = isset($package['url']) ? $package['url'] : '';
+
+                        // Check for thumbnail_url and provide fallback
+                        if (isset($package['thumbnail_url']) && !empty($package['thumbnail_url'])) {
+                            $thumbnail_url = $package['thumbnail_url'];
+                        } else {
+                            // Use placeholder image with package name
+                            $thumbnail_url = 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
+                        }
+
+                        // Debug output for each package
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            echo '<!-- Package ' . ($index + 1) . ' - Name: ' . esc_html($package_name) . ', Thumbnail: ' . esc_html($thumbnail_url) . ' -->';
+                        }
+                    ?>
+                    <div class="package-selection-column">
+                        <div class="package-image-wrapper">
+                            <img src="<?php echo esc_url($thumbnail_url); ?>"
+                                 alt="<?php echo esc_attr($package_name); ?>"
+                                 class="package-image"
+                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';"
+                                 title="Image URL: <?php echo esc_attr($thumbnail_url); ?>">
+                        </div>
+                        <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Custom Package Upload -->
             <h3>Upload Your Own Package</h3>
