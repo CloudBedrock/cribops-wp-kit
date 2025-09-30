@@ -274,6 +274,13 @@ class CWPK_Manifest_Installer {
             return $tmp_file;
         }
 
+        // Validate that the downloaded file is actually a ZIP file
+        $validation_result = $this->validate_zip_file($tmp_file);
+        if (is_wp_error($validation_result)) {
+            @unlink($tmp_file);
+            return $validation_result;
+        }
+
         // Inspect the ZIP to determine actual slug
         $actual_slug = $this->get_plugin_slug_from_zip($tmp_file);
 
@@ -313,6 +320,115 @@ class CWPK_Manifest_Installer {
 
         @unlink($tmp_file);
         return new WP_Error('move_failed', 'Failed to move downloaded file');
+    }
+
+    /**
+     * Validate that a file is actually a ZIP file
+     */
+    private function validate_zip_file($file_path) {
+        // Check if file exists
+        if (!file_exists($file_path)) {
+            return new WP_Error('file_not_found', 'Downloaded file does not exist');
+        }
+
+        // Check file size (should be larger than just an error message)
+        $file_size = filesize($file_path);
+        if ($file_size < 100) {
+            // File is suspiciously small, likely an error message
+            $content = file_get_contents($file_path);
+
+            // Check if it's JSON
+            $json_data = @json_decode($content, true);
+            if ($json_data !== null) {
+                $error_message = 'Download failed: Server returned JSON error';
+                if (isset($json_data['error'])) {
+                    $error_message .= ' - ' . $json_data['error'];
+                } elseif (isset($json_data['message'])) {
+                    $error_message .= ' - ' . $json_data['message'];
+                }
+                return new WP_Error('invalid_response', $error_message);
+            }
+
+            // Check if it's HTML error page
+            if (stripos($content, '<!DOCTYPE') !== false || stripos($content, '<html') !== false) {
+                return new WP_Error('invalid_response', 'Download failed: Server returned HTML error page');
+            }
+
+            return new WP_Error('file_too_small', 'Downloaded file is too small to be a valid plugin (only ' . $file_size . ' bytes)');
+        }
+
+        // Check ZIP file signature (magic bytes)
+        $file_handle = fopen($file_path, 'rb');
+        if ($file_handle === false) {
+            return new WP_Error('file_read_error', 'Cannot read downloaded file');
+        }
+
+        $magic_bytes = fread($file_handle, 4);
+        fclose($file_handle);
+
+        // ZIP files start with PK\x03\x04 or PK\x05\x06 (empty archive) or PK\x07\x08 (spanned archive)
+        $valid_signatures = array(
+            "\x50\x4b\x03\x04", // Standard ZIP
+            "\x50\x4b\x05\x06", // Empty ZIP
+            "\x50\x4b\x07\x08"  // Spanned ZIP
+        );
+
+        $is_valid = false;
+        foreach ($valid_signatures as $signature) {
+            if (strpos($magic_bytes, $signature) === 0) {
+                $is_valid = true;
+                break;
+            }
+        }
+
+        if (!$is_valid) {
+            // Try to get a preview of file content for better error message
+            $preview = file_get_contents($file_path, false, null, 0, 200);
+
+            // Check if it looks like JSON
+            $json_data = @json_decode($preview, true);
+            if ($json_data !== null) {
+                $error_message = 'Download failed: Server returned JSON instead of ZIP file';
+                if (isset($json_data['error'])) {
+                    $error_message .= ' - ' . $json_data['error'];
+                } elseif (isset($json_data['message'])) {
+                    $error_message .= ' - ' . $json_data['message'];
+                }
+                error_log('CribOps WP-Kit: Invalid file content: ' . $preview);
+                return new WP_Error('invalid_zip', $error_message);
+            }
+
+            // Check if it looks like HTML
+            if (stripos($preview, '<!DOCTYPE') !== false || stripos($preview, '<html') !== false) {
+                error_log('CribOps WP-Kit: Invalid file content (HTML): ' . substr($preview, 0, 100));
+                return new WP_Error('invalid_zip', 'Download failed: Server returned HTML page instead of ZIP file');
+            }
+
+            error_log('CribOps WP-Kit: Invalid ZIP signature. First 4 bytes: ' . bin2hex($magic_bytes));
+            return new WP_Error('invalid_zip', 'Downloaded file is not a valid ZIP archive. File may be corrupted or server returned an error.');
+        }
+
+        // If ZipArchive is available, try to open it for additional validation
+        if (class_exists('ZipArchive')) {
+            $zip = new ZipArchive();
+            $result = $zip->open($file_path, ZipArchive::CHECKCONS);
+
+            if ($result !== true) {
+                $error_messages = array(
+                    ZipArchive::ER_NOZIP => 'Not a valid ZIP archive',
+                    ZipArchive::ER_INCONS => 'ZIP archive is inconsistent',
+                    ZipArchive::ER_CRC => 'CRC error in ZIP',
+                    ZipArchive::ER_READ => 'Cannot read ZIP file',
+                );
+
+                $error_message = isset($error_messages[$result]) ? $error_messages[$result] : 'ZIP validation failed (error code: ' . $result . ')';
+                return new WP_Error('zip_validation_failed', $error_message);
+            }
+
+            $zip->close();
+        }
+
+        return true;
     }
 
     /**
@@ -440,6 +556,43 @@ class CWPK_Manifest_Installer {
         $file_path = $target_dir . '/' . $actual_slug . '.zip';
         if (!file_exists($file_path)) {
             $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+        }
+
+        // If file exists, validate it's a valid ZIP before attempting installation
+        if (file_exists($file_path)) {
+            $validation_result = $this->validate_zip_file($file_path);
+            if (is_wp_error($validation_result)) {
+                // File is corrupted, delete it and force re-download
+                error_log('CribOps WP-Kit: Deleting corrupted ZIP file: ' . $file_path . ' - ' . $validation_result->get_error_message());
+                @unlink($file_path);
+
+                // Force download of fresh copy
+                $manifest = $this->get_plugin_manifest();
+                if (is_wp_error($manifest)) {
+                    wp_send_json_error('Failed to get plugin list: ' . $manifest->get_error_message());
+                }
+
+                $plugin_data = null;
+                foreach ($manifest as $plugin) {
+                    if ($plugin['slug'] === $plugin_slug) {
+                        $plugin_data = $plugin;
+                        break;
+                    }
+                }
+
+                if (!$plugin_data) {
+                    wp_send_json_error('Plugin not found in repository. Previous file was corrupted: ' . $validation_result->get_error_message());
+                }
+
+                // Download the plugin
+                $download_result = $this->download_plugin($plugin_data);
+                if (is_wp_error($download_result)) {
+                    wp_send_json_error('Failed to download plugin after detecting corruption: ' . $download_result->get_error_message());
+                }
+
+                // Update file path after download
+                $file_path = isset($download_result['file']) ? $download_result['file'] : $target_dir . '/' . $plugin_slug . '.zip';
+            }
         }
 
         // Special handling for Prime Mover - install from WordPress.org
