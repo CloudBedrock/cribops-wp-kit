@@ -630,8 +630,8 @@ class CWPK_Manifest_Installer {
             }
         }
 
-        // Special handling for Prime Mover - install from WordPress.org
-        if ($plugin_slug === 'prime-mover-pro' || $plugin_slug === 'prime-mover') {
+        // Special handling for Prime Mover free version - install from WordPress.org
+        if ($plugin_slug === 'prime-mover') {
             // Install directly from WordPress.org repository
             if (!function_exists('plugins_api')) {
                 include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
