@@ -172,8 +172,45 @@ class CWPKInstaller {
             <?php endif; ?>
         </p>
         <?php
-        // Display plugin updates & table
-        $this->fetch_latest_launchkit_plugins();
+        // Add sub-navigation tabs for Plugins and Themes
+        $installer_tab = isset($_GET['installer_tab']) ? $_GET['installer_tab'] : 'plugins';
+        ?>
+        <style>
+            .cwpk-installer-tabs {
+                margin: 20px 0;
+                border-bottom: 1px solid #ccc;
+            }
+            .cwpk-installer-tabs a {
+                display: inline-block;
+                padding: 10px 20px;
+                text-decoration: none;
+                border: 1px solid transparent;
+                margin-bottom: -1px;
+            }
+            .cwpk-installer-tabs a.active {
+                background: #fff;
+                border: 1px solid #ccc;
+                border-bottom: 1px solid #fff;
+            }
+        </style>
+        <nav class="cwpk-installer-tabs">
+            <a href="?page=cwpk&tab=installer&installer_tab=plugins" class="<?php echo $installer_tab === 'plugins' ? 'active' : ''; ?>">Plugins</a>
+            <a href="?page=cwpk&tab=installer&installer_tab=themes" class="<?php echo $installer_tab === 'themes' ? 'active' : ''; ?>">Themes</a>
+        </nav>
+
+        <?php
+        if ($installer_tab === 'themes') {
+            // Display theme installer
+            if (class_exists('CWPK_Theme_Manager')) {
+                $theme_manager = new CWPK_Theme_Manager();
+                $theme_manager->display_theme_installer();
+            } else {
+                echo '<p>Theme manager not available. Please ensure the theme manager class is loaded.</p>';
+            }
+        } else {
+            // Display plugin updates & table
+            $this->fetch_latest_launchkit_plugins();
+        }
         ?>
         <script type="text/javascript">
         jQuery(document).ready(function($) {

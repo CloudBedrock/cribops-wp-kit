@@ -23,6 +23,10 @@ class CWPKManager {
 		add_action('wp_ajax_download_plugin_list', array($this, 'ajax_download_plugin_list'));
 		add_action('wp_ajax_upload_plugin_list', array($this, 'ajax_upload_plugin_list'));
 		add_action('wp_ajax_launchkit_manage_plugins', array($this, 'ajax_manage_plugins'));
+		add_action('wp_ajax_get_themes_list', array($this, 'ajax_get_themes_list'));
+		add_action('wp_ajax_download_theme_list', array($this, 'ajax_download_theme_list'));
+		add_action('wp_ajax_upload_theme_list', array($this, 'ajax_upload_theme_list'));
+		add_action('wp_ajax_launchkit_manage_themes', array($this, 'ajax_manage_themes'));
 		add_action('admin_head', array($this, 'manager_css'));
 		add_action('admin_footer', array($this, 'manager_js'));
 	}
@@ -81,11 +85,34 @@ class CWPKManager {
 
 	// Render the plugin's admin page
 	public function launchkit_manager_page() {
+		$manager_tab = isset($_GET['manager_tab']) ? $_GET['manager_tab'] : 'plugins';
 ?>
 <h1><?php _e('CribOps WP-Kit Manager', 'launchkit-manager'); ?></h1>
+<style>
+	.cwpk-manager-tabs {
+		margin: 20px 0;
+		border-bottom: 1px solid #ccc;
+	}
+	.cwpk-manager-tabs a {
+		display: inline-block;
+		padding: 10px 20px;
+		text-decoration: none;
+		border: 1px solid transparent;
+		margin-bottom: -1px;
+	}
+	.cwpk-manager-tabs a.active {
+		background: #fff;
+		border: 1px solid #ccc;
+		border-bottom: 1px solid #fff;
+	}
+</style>
+<nav class="cwpk-manager-tabs">
+	<a href="?page=cwpk&tab=manager&manager_tab=plugins" class="<?php echo $manager_tab === 'plugins' ? 'active' : ''; ?>">Plugin Recipes</a>
+	<a href="?page=cwpk&tab=manager&manager_tab=themes" class="<?php echo $manager_tab === 'themes' ? 'active' : ''; ?>">Theme Recipes</a>
+</nav>
 <div class="wrap">
 	<div id="lk-notification" class="notice" style="display: none;"></div>
-	<div id="launchkit-manager-container">
+	<div id="launchkit-manager-container" data-manager-type="<?php echo esc_attr($manager_tab); ?>">
 		<!-- Content will be loaded via AJAX -->
 	</div>
 </div>
@@ -393,6 +420,244 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 		));
 	}
 
+	// AJAX handler for getting themes list
+	public function ajax_get_themes_list() {
+		check_ajax_referer('launchkit-manager-nonce', 'nonce');
+
+		if (!current_user_can('switch_themes')) {
+			wp_send_json_error('You do not have sufficient permissions to manage themes on this site.');
+		}
+
+		$themes = wp_get_themes();
+		$current_theme = wp_get_theme();
+		ob_start();
+?>
+<form id="launchkit-theme-manager-form">
+	<div id="recipe_wrap">
+		<h3>Theme Recipes</h3>
+		<p>Choose ONE method to load recipe, then use Activate Button:</p>
+		(1) Either select theme checkboxes below<br/>
+		(2) Or paste <strong>one theme name per line</strong> like this:
+		<pre>kadence<br/>astra<br/>generatepress</pre>
+
+		<div class="control_buttons">
+			<textarea name="theme_list" id="theme_list" rows="4" cols="50" placeholder="List one theme name per line"></textarea>
+		</div>
+
+		(3) Or upload a Theme Recipe .txt file<br/>
+		<div class="control_buttons">
+			<input type="file" id="upload_theme_file" accept=".txt">
+			<button type="button" id="upload_theme_list" class="button">Upload Recipe List</button>
+		</div>
+	</div>
+
+	<div id="recipe_wrap">
+		(*Optional) Name and download your Theme Recipe for later use<br/>
+		<div class="control_buttons">
+			<input type="text" id="download_theme_filename" placeholder="Enter filename (optional)">
+			<button type="button" id="download_theme_list" class="button">Download Theme Recipe</button>
+		</div>
+	</div>
+
+	<div class="control_buttons">
+		<button type="submit" name="action" value="activate" class="button button-primary">Activate Selected Theme</button>
+	</div>
+
+	<div id="operation-progress" style="display: none;">
+		<p class="status"></p>
+	</div>
+
+	<div class="lk-table-container">
+		<table class="wp-list-table widefat plugins">
+			<thead>
+				<tr>
+					<td class="manage-column check-column">
+						<label class="screen-reader-text" for="cb-select-all-themes">Select All</label>
+						<input id="cb-select-all-themes" type="checkbox">
+					</td>
+					<th scope="col" class="manage-column column-name column-primary sortable asc">
+						<a href="#" class="sort-column" data-sort="name">
+							<span>Theme</span>
+							<span class="sorting-indicator"></span>
+						</a>
+					</th>
+					<th scope="col" class="manage-column column-description sortable desc">
+						<a href="#" class="sort-column" data-sort="status">
+							<span>Status</span>
+							<span class="sorting-indicator"></span>
+						</a>
+					</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ($themes as $theme_slug => $theme_data) : ?>
+				<tr class="<?php echo ($current_theme->get_stylesheet() === $theme_slug) ? 'active' : 'inactive'; ?>" data-theme-name="<?php echo esc_attr(strtolower($theme_data->get('Name'))); ?>" data-theme-status="<?php echo ($current_theme->get_stylesheet() === $theme_slug) ? '1' : '0'; ?>">
+					<th scope="row" class="check-column">
+						<label class="screen-reader-text" for="checkbox_<?php echo esc_attr($theme_slug); ?>">
+							Select <?php echo esc_html($theme_data->get('Name')); ?>
+						</label>
+						<input type="checkbox" name="checked[]" value="<?php echo esc_attr($theme_slug); ?>" id="checkbox_<?php echo esc_attr($theme_slug); ?>" <?php echo ($current_theme->get_stylesheet() === $theme_slug) ? 'disabled' : ''; ?>>
+					</th>
+					<td class="theme-title column-primary">
+						<strong><?php echo esc_html($theme_data->get('Name')); ?></strong>
+						<div class="theme-folder"><code><?php echo esc_html($theme_slug); ?></code></div>
+					</td>
+					<td class="column-description desc">
+						<div class="theme-description">
+							<p><?php echo esc_html($theme_data->get('Description')); ?></p>
+						</div>
+						<div class="active second theme-activation-status">
+							<?php if ($current_theme->get_stylesheet() === $theme_slug) : ?>
+							Status: <span class="active">Active</span>
+							<?php else : ?>
+							Status: <span class="inactive">Inactive</span>
+							<?php endif; ?>
+						</div>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</div>
+</form>
+<?php
+		$content = ob_get_clean();
+		wp_send_json_success($content);
+	}
+
+	// AJAX handler for managing themes
+	public function ajax_manage_themes() {
+		check_ajax_referer('launchkit-manager-nonce', 'nonce');
+
+		if (!current_user_can('switch_themes')) {
+			wp_send_json_error('You do not have sufficient permissions to manage themes on this site.');
+		}
+
+		$themes = isset($_POST['themes']) ? (array) $_POST['themes'] : array();
+		$action = isset($_POST['action_type']) ? $_POST['action_type'] : '';
+		$all_themes = wp_get_themes();
+
+		if ($action === 'activate') {
+			if (count($themes) > 1) {
+				wp_send_json_error('You can only activate one theme at a time');
+			}
+
+			if (empty($themes)) {
+				wp_send_json_error('No theme specified');
+			}
+
+			$theme_slug = trim($themes[0]);
+
+			// Find the theme
+			$found_theme = null;
+			foreach ($all_themes as $slug => $theme_data) {
+				if ($slug === $theme_slug || strpos($theme_data->get('Name'), $theme_slug) !== false) {
+					$found_theme = $slug;
+					break;
+				}
+			}
+
+			if (!$found_theme) {
+				wp_send_json_error('Theme not found');
+			}
+
+			// Activate the theme
+			switch_theme($found_theme);
+			$message = 'Theme activated successfully';
+		} else {
+			wp_send_json_error('Invalid action');
+		}
+
+		// Get the updated status of each theme
+		$current_theme = wp_get_theme();
+		$themes_data = array();
+		foreach ($all_themes as $slug => $data) {
+			$themes_data[] = array(
+				'slug' => $slug,
+				'name' => $data->get('Name'),
+				'status' => ($current_theme->get_stylesheet() === $slug) ? 'active' : 'inactive',
+			);
+		}
+
+		wp_send_json_success(array(
+			'message' => $message,
+			'themes_data' => $themes_data
+		));
+	}
+
+	// AJAX handler for downloading theme list
+	public function ajax_download_theme_list() {
+		check_ajax_referer('launchkit-manager-nonce', 'nonce');
+
+		if (!current_user_can('switch_themes')) {
+			wp_send_json_error('You do not have sufficient permissions to manage themes on this site.');
+		}
+
+		$theme_list = isset($_POST['theme_list']) ? sanitize_textarea_field($_POST['theme_list']) : '';
+		$checked_themes = isset($_POST['checked_themes']) ? (array) $_POST['checked_themes'] : array();
+		$filename = isset($_POST['filename']) ? sanitize_file_name($_POST['filename']) : 'theme_list';
+
+		$filename = preg_replace('/\.txt$/', '', $filename);
+		$filename .= '-recipe.txt';
+
+		$theme_list = implode("\n", array_filter(array_map('trim', explode("\n", $theme_list))));
+		$checked_themes = array_filter(array_map('trim', $checked_themes));
+
+		$content = $theme_list;
+		if (!empty($checked_themes)) {
+			$content .= ($content ? "\n" : "") . implode("\n", $checked_themes);
+		}
+
+		$content = trim($content);
+
+		wp_send_json_success(array(
+			'content' => $content,
+			'filename' => $filename
+		));
+	}
+
+	// AJAX handler for uploading theme list
+	public function ajax_upload_theme_list() {
+		check_ajax_referer('launchkit-manager-nonce', 'nonce');
+
+		if (!current_user_can('switch_themes')) {
+			wp_send_json_error(esc_html__('You do not have sufficient permissions to manage themes on this site.', 'cwpk'));
+		}
+
+		if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+			wp_send_json_error(esc_html__('File upload failed.', 'cwpk'));
+		}
+
+		$allowed_types = array('text/plain');
+		$file_type = wp_check_filetype(basename($_FILES['file']['name']), null);
+		if (!in_array($file_type['type'], $allowed_types)) {
+			wp_send_json_error(esc_html__('Invalid file type. Only .txt files are allowed.', 'cwpk'));
+		}
+
+		$max_size = 1 * 1024 * 1024;
+		if ($_FILES['file']['size'] > $max_size) {
+			wp_send_json_error(esc_html__('File is too large. Maximum size is 1MB.', 'cwpk'));
+		}
+
+		$file_content = file_get_contents($_FILES['file']['tmp_name']);
+		if ($file_content === false) {
+			wp_send_json_error(esc_html__('Failed to read file content.', 'cwpk'));
+		}
+
+		$lines = explode("\n", $file_content);
+		$sanitized_lines = array();
+		foreach ($lines as $line) {
+			$sanitized_line = sanitize_text_field(trim($line));
+			if (!empty($sanitized_line)) {
+				$sanitized_lines[] = $sanitized_line;
+			}
+		}
+
+		$sanitized_content = implode("\n", $sanitized_lines);
+
+		wp_send_json_success(array('content' => $sanitized_content));
+	}
+
 	// Inline CSS
 	public function manager_css() {
 ?>
@@ -514,6 +779,8 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 				return;
 			}
 
+			var managerType = $('#launchkit-manager-container').data('manager-type') || 'plugins';
+
 			function loadPluginsList() {
 				$.ajax({
 					url: launchkitManager.ajax_url,
@@ -532,6 +799,28 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 					},
 					error: function() {
 						showNotification('error', 'An error occurred while loading the plugins list.');
+					}
+				});
+			}
+
+			function loadThemesList() {
+				$.ajax({
+					url: launchkitManager.ajax_url,
+					type: 'POST',
+					data: {
+						action: 'get_themes_list',
+						nonce: launchkitManager.nonce
+					},
+					success: function(response) {
+						if (response.success) {
+							$('#launchkit-manager-container').html(response.data);
+							bindThemeEvents();
+						} else {
+							showNotification('error', 'Error loading themes list: ' + response.data);
+						}
+					},
+					error: function() {
+						showNotification('error', 'An error occurred while loading the themes list.');
 					}
 				});
 			}
@@ -700,6 +989,155 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 				document.body.removeChild(element);
 			}
 
+			function bindThemeEvents() {
+				$('#cb-select-all-themes').on('change', function() {
+					$('input[name="checked[]"]').prop('checked', this.checked).change();
+				});
+
+				$('#launchkit-theme-manager-form').on('submit', function(e) {
+					e.preventDefault();
+					var selectedThemes = $('input[name="checked[]"]:checked').map(function() {
+						return this.value;
+					}).get();
+
+					var pastedThemes = $('#theme_list').val().split('\n').filter(function(theme) {
+						return theme.trim() !== '';
+					});
+
+					var themes = pastedThemes.length > 0 ? pastedThemes : selectedThemes;
+
+					if (themes.length === 0) {
+						showNotification('error', 'Please select at least one theme or paste a theme name to activate.');
+						return;
+					}
+
+					if (themes.length > 1) {
+						showNotification('error', 'You can only activate one theme at a time.');
+						return;
+					}
+
+					var action = $(e.originalEvent.submitter).val();
+					var $status = $('#operation-progress .status');
+					$('#operation-progress').show();
+					$status.text('Activating theme...');
+
+					$.ajax({
+						url: launchkitManager.ajax_url,
+						type: 'POST',
+						data: {
+							action: 'launchkit_manage_themes',
+							themes: themes,
+							action_type: action,
+							nonce: launchkitManager.nonce
+						},
+						success: function(response) {
+							if (response.success) {
+								$status.text(response.data.message);
+								setTimeout(function() {
+									loadThemesList();
+									showNotification('success', response.data.message);
+								}, 1000);
+							} else {
+								showNotification('error', 'Error: ' + response.data);
+							}
+						},
+						error: function() {
+							showNotification('error', 'An error occurred while managing themes.');
+						}
+					});
+				});
+
+				$('#download_theme_list').on('click', function() {
+					var themeList = $('#theme_list').val();
+					var filename = $('#download_theme_filename').val();
+					var checkedThemes = $('input[name="checked[]"]:checked').map(function() {
+						return this.value;
+					}).get();
+
+					$.ajax({
+						url: launchkitManager.ajax_url,
+						type: 'POST',
+						data: {
+							action: 'download_theme_list',
+							theme_list: themeList,
+							checked_themes: checkedThemes,
+							filename: filename,
+							nonce: launchkitManager.nonce
+						},
+						success: function(response) {
+							if (response.success) {
+								downloadTextFile(response.data.content, response.data.filename);
+							} else {
+								showNotification('error', 'Error: ' + response.data);
+							}
+						},
+						error: function() {
+							showNotification('error', 'An error occurred while preparing the download.');
+						}
+					});
+				});
+
+				$('#upload_theme_list').on('click', function() {
+					var fileInput = $('#upload_theme_file')[0];
+					if (fileInput.files.length === 0) {
+						showNotification('error', 'Please select a file to upload.');
+						return;
+					}
+
+					var formData = new FormData();
+					formData.append('action', 'upload_theme_list');
+					formData.append('nonce', launchkitManager.nonce);
+					formData.append('file', fileInput.files[0]);
+
+					$.ajax({
+						url: launchkitManager.ajax_url,
+						type: 'POST',
+						data: formData,
+						processData: false,
+						contentType: false,
+						success: function(response) {
+							if (response.success) {
+								$('#theme_list').val(response.data.content);
+								showNotification('success', 'Recipe list uploaded successfully.');
+							} else {
+								showNotification('error', 'Error: ' + response.data);
+							}
+						},
+						error: function() {
+							showNotification('error', 'An error occurred while uploading the file.');
+						}
+					});
+				});
+
+				$('.sort-column').on('click', function(e) {
+					e.preventDefault();
+					var $this = $(this);
+					var sortBy = $this.data('sort');
+					var $table = $('.wp-list-table');
+					var $rows = $table.find('tbody > tr').get();
+
+					var sortOrder = $this.closest('.sortable').hasClass('asc') ? -1 : 1;
+
+					$rows.sort(function(a, b) {
+						var aValue = $(a).data('theme-' + sortBy);
+						var bValue = $(b).data('theme-' + sortBy);
+
+						if (sortBy === 'name') {
+							return aValue.localeCompare(bValue) * sortOrder;
+						} else {
+							return (aValue - bValue) * sortOrder;
+						}
+					});
+
+					$.each($rows, function(index, row) {
+						$table.children('tbody').append(row);
+					});
+
+					$('.sortable').removeClass('asc desc');
+					$this.closest('.sortable').addClass(sortOrder === 1 ? 'asc' : 'desc');
+				});
+			}
+
 			function showNotification(type, message) {
 				var $notification = $('#lk-notification');
 				$notification.removeClass('notice-success notice-error').addClass('notice-' + type);
@@ -712,7 +1150,12 @@ document.getElementById('launchkit-cleanup-button').addEventListener('click', fu
 				}, 5000);
 			}
 
-			loadPluginsList();
+			// Load appropriate list based on manager type
+			if (managerType === 'themes') {
+				loadThemesList();
+			} else {
+				loadPluginsList();
+			}
 		});
 	})(jQuery);
 </script>
