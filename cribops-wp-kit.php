@@ -117,6 +117,7 @@ if (!class_exists('CribOpsWPKit')) {
             require_once('includes/class-cwpk-license-loader.php');
             require_once('includes/class-cwpk-manager.php');
             require_once('includes/class-cwpk-pluginmanager.php');
+            require_once('includes/class-cwpk-theme-manager.php');
             // require_once('includes/class-cwpk-updater.php'); // Disabled - using GitHub updater
             require_once('includes/class-cwpk-github-updater.php');
         }
