@@ -33,7 +33,7 @@ class CWPKInstaller {
         // Skip prime mover activation script
         add_action('admin_footer', array($this, 'skip_prime_mover_activation_script'));
 
-        add_action('wp_ajax_install_kadence_theme', array($this, 'install_kadence_theme_callback'));
+        add_action('wp_ajax_install_mainwp_child', array($this, 'install_mainwp_child_callback'));
         add_action('wp_ajax_install_base_launchkit', array($this, 'install_base_launchkit_callback'));
 
         add_action('wp_ajax_install_plugin', array($this, 'install_plugin_callback'));
@@ -163,7 +163,7 @@ class CWPKInstaller {
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
         ?>
         <p>
-            <button type="button" class="button button-primary" id="install_kadence_theme">Install Kadence Theme</button>
+            <button type="button" class="button button-primary" id="install_mainwp_child">Install MainWP Child</button>
             <?php if (! $prime_mover_installed) : ?>
                 <button type="button" class="button button-primary" id="install_prime_mover">Install Prime Mover</button>
             <?php else : ?>
@@ -214,16 +214,29 @@ class CWPKInstaller {
         ?>
         <script type="text/javascript">
         jQuery(document).ready(function($) {
-            // Kadence
-            $('#install_kadence_theme').click(function() {
+            // MainWP Child
+            $('#install_mainwp_child').click(function() {
                 var button = $(this);
                 button.text('Installing...').prop('disabled', true);
 
                 $.post(ajaxurl, {
-                    action: 'install_kadence_theme',
-                    security: '<?php echo wp_create_nonce("install_kadence_theme_nonce"); ?>'
-                }, function() {
-                    button.text('Kadence Theme Installed').prop('disabled', true);
+                    action: 'install_mainwp_child',
+                    security: '<?php echo wp_create_nonce("install_mainwp_child_nonce"); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        button.text('MainWP Child Installed').prop('disabled', true);
+                        if (response.data && response.data.message) {
+                            alert(response.data.message);
+                        }
+                    } else {
+                        button.text('Installation Failed').prop('disabled', false);
+                        if (response.data) {
+                            alert('Installation Error: ' + response.data);
+                        }
+                    }
+                }).fail(function(jqXHR, textStatus, errorThrown) {
+                    button.text('Installation Failed').prop('disabled', false);
+                    alert('Request failed: ' + textStatus + ' - ' + errorThrown);
                 });
             });
 
@@ -704,32 +717,79 @@ class CWPKInstaller {
     }
 
     /**
-     * AJAX: install_kadence_theme
+     * AJAX: install_mainwp_child
      */
-    public function install_kadence_theme_callback() {
-        check_ajax_referer('install_kadence_theme_nonce', 'security');
+    public function install_mainwp_child_callback() {
+        check_ajax_referer('install_mainwp_child_nonce', 'security');
 
-        include_once ABSPATH . 'wp-admin/includes/theme-install.php';
-        include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-        $api = themes_api('theme_information', array('slug' => 'kadence'));
-        if (is_wp_error($api)) {
-            wp_send_json_error($api->get_error_message());
+        // Use WP_PLUGIN_DIR if defined, otherwise construct it from ABSPATH
+        if (defined('WP_PLUGIN_DIR')) {
+            $plugins_dir = WP_PLUGIN_DIR;
+        } else {
+            $plugins_dir = ABSPATH . 'wp-content/plugins';
         }
 
-        $skin     = new WP_Ajax_Upgrader_Skin();
-        $upgrader = new Theme_Upgrader($skin);
-        $result   = $upgrader->install($api->download_link);
+        $plugin_file = 'mainwp-child/mainwp-child.php';
+        $plugin_path = $plugins_dir . '/' . $plugin_file;
 
-        if (is_wp_error($result)) {
-            wp_send_json_error($result->get_error_message());
-        } elseif (is_wp_error($skin->result)) {
-            wp_send_json_error($skin->result->get_error_message());
-        } elseif ($skin->get_errors()->has_errors()) {
-            wp_send_json_error($skin->get_error_messages());
+        // Check if already installed
+        if (file_exists($plugin_path)) {
+            $result = activate_plugin($plugin_file);
+            if (is_wp_error($result)) {
+                wp_send_json_error('Plugin exists but activation failed: ' . $result->get_error_message());
+            }
+            wp_send_json_success(array('message' => 'MainWP Child was already installed and has been activated.'));
         } else {
-            switch_theme('kadence');
-            wp_send_json_success();
+            // Include necessary files
+            if (!function_exists('plugins_api')) {
+                include_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+            }
+            if (!class_exists('WP_Ajax_Upgrader_Skin')) {
+                include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+                include_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
+            }
+
+            // Get plugin information from WordPress.org
+            $api = plugins_api('plugin_information', array(
+                'slug' => 'mainwp-child',
+                'fields' => array(
+                    'short_description' => false,
+                    'sections' => false,
+                    'requires' => false,
+                    'rating' => false,
+                    'ratings' => false,
+                    'downloaded' => false,
+                    'last_updated' => false,
+                    'added' => false,
+                    'tags' => false,
+                    'homepage' => false,
+                    'donate_link' => false,
+                )
+            ));
+
+            if (is_wp_error($api)) {
+                wp_send_json_error('Failed to get plugin information from WordPress.org: ' . $api->get_error_message());
+            }
+
+            // Install the plugin
+            $skin     = new WP_Ajax_Upgrader_Skin();
+            $upgrader = new Plugin_Upgrader($skin);
+            $result   = $upgrader->install($api->download_link);
+
+            if (is_wp_error($result)) {
+                wp_send_json_error('Installation failed: ' . $result->get_error_message());
+            } elseif (is_wp_error($skin->result)) {
+                wp_send_json_error('Installation process error: ' . $skin->result->get_error_message());
+            } elseif ($skin->get_errors()->has_errors()) {
+                wp_send_json_error('Installation errors: ' . implode(', ', $skin->get_error_messages()));
+            } else {
+                // Activate the plugin
+                $activation_result = activate_plugin($plugin_file);
+                if (is_wp_error($activation_result)) {
+                    wp_send_json_error('Plugin installed but activation failed: ' . $activation_result->get_error_message());
+                }
+                wp_send_json_success(array('message' => 'MainWP Child installed and activated successfully.'));
+            }
         }
     }
 
