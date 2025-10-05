@@ -66,7 +66,7 @@ class CWPKAuth {
         }
 
         $response = wp_remote_post(
-            CWPKConfig::get_wp_kit_api_endpoint() . '/authenticate-token',
+            CWPKConfig::get_wp_kit_api_endpoint() . '/v1/authenticate-token',
             array(
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $token,
