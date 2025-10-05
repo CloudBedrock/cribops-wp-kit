@@ -165,7 +165,18 @@ class CWPKInstaller {
         }
 
         // Logged in + can_access_launchkit = true
-        echo '<p>Hi ' . esc_html($first_name) . ', you are logged in with Software Bundle.</p>';
+        // Show appropriate greeting based on auth type
+        if (!empty($first_name)) {
+            if ($auth_type === 'token') {
+                echo '<p>Hi ' . esc_html($first_name) . ', you have Software Bundle access.</p>';
+            } else {
+                echo '<p>Hi ' . esc_html($first_name) . ', you are logged in with Software Bundle.</p>';
+            }
+        } elseif ($auth_type === 'credentials') {
+            // No name available but using password auth
+            echo '<p>You are logged in with Software Bundle access.</p>';
+        }
+        // For token auth without a name, no greeting needed since the green badge shows auth status
 
         // Check if Prime Mover plugin is installed
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
