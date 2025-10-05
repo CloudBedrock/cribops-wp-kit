@@ -161,9 +161,15 @@ class CWPKInstaller {
 
         // Check if Prime Mover plugin is installed
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
+        // Check if MainWP Child plugin is installed
+        $mainwp_child_installed = is_plugin_active('mainwp-child/mainwp-child.php');
         ?>
         <p>
-            <button type="button" class="button button-primary" id="install_mainwp_child">Install MainWP Child</button>
+            <?php if (! $mainwp_child_installed) : ?>
+                <button type="button" class="button button-primary" id="install_mainwp_child">Install MainWP Child</button>
+            <?php else : ?>
+                <button type="button" class="button button-primary" disabled>MainWP Child Installed</button>
+            <?php endif; ?>
             <?php if (! $prime_mover_installed) : ?>
                 <button type="button" class="button button-primary" id="install_prime_mover">Install Prime Mover</button>
             <?php else : ?>
@@ -228,6 +234,10 @@ class CWPKInstaller {
                         if (response.data && response.data.message) {
                             alert(response.data.message);
                         }
+                        // Reload page to update button states
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1000);
                     } else {
                         button.text('Installation Failed').prop('disabled', false);
                         if (response.data) {
