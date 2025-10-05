@@ -1026,6 +1026,12 @@ class CWPKInstaller {
 
             <!-- Package Selection -->
             <h3>Select Package</h3>
+            <?php if (!empty($packages)) : ?>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="cwpk-package-search" placeholder="Search packages by name..." style="width: 300px; padding: 5px;">
+                <span id="cwpk-package-search-results" style="margin-left: 10px; color: #666;"></span>
+            </div>
+            <?php endif; ?>
             <?php if (empty($packages)) : ?>
                 <div class="notice notice-info">
                     <p><strong>No packages currently available.</strong></p>
@@ -1050,7 +1056,7 @@ class CWPKInstaller {
                             echo '<!-- Package ' . ($index + 1) . ' - Name: ' . esc_html($package_name) . ', Thumbnail: ' . esc_html($thumbnail_url) . ' -->';
                         }
                     ?>
-                    <div class="package-selection-column">
+                    <div class="package-selection-column" data-package-name="<?php echo esc_attr(strtolower($package_name)); ?>">
                         <div class="package-image-wrapper">
                             <img src="<?php echo esc_url($thumbnail_url); ?>"
                                  alt="<?php echo esc_attr($package_name); ?>"
@@ -1078,6 +1084,43 @@ class CWPKInstaller {
 
         <script type="text/javascript">
         jQuery(document).ready(function($) {
+            // Package search functionality
+            $('#cwpk-package-search').on('keyup search', function() {
+                var searchTerm = $(this).val().toLowerCase();
+                var visibleCount = 0;
+                var totalCount = 0;
+
+                $('.package-selection-column').each(function() {
+                    var packageCol = $(this);
+                    var packageName = packageCol.data('package-name');
+
+                    totalCount++;
+
+                    if (searchTerm === '' || packageName.indexOf(searchTerm) !== -1) {
+                        packageCol.show();
+                        visibleCount++;
+                    } else {
+                        packageCol.hide();
+                    }
+                });
+
+                // Update results count
+                if (searchTerm === '') {
+                    $('#cwpk-package-search-results').text('');
+                } else {
+                    $('#cwpk-package-search-results').text('Showing ' + visibleCount + ' of ' + totalCount + ' packages');
+                }
+
+                // Handle "no results" message
+                if (visibleCount === 0 && totalCount > 0) {
+                    if ($('#cwpk-no-package-results').length === 0) {
+                        $('.package-selection-row').append('<div id="cwpk-no-package-results" style="width: 100%; text-align: center; padding: 40px 20px; color: #666;">No packages found matching "' + searchTerm + '"</div>');
+                    }
+                } else {
+                    $('#cwpk-no-package-results').remove();
+                }
+            });
+
             $('.upload-package-button').click(function(e) {
                 e.preventDefault();
                 var button = $(this);

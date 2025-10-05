@@ -596,6 +596,10 @@ class CWPK_Theme_Manager {
         ?>
         <div id="cwpk-theme-installer">
             <h3>Available Themes</h3>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="cwpk-theme-search" placeholder="Search themes by name..." style="width: 300px; padding: 5px;">
+                <span id="cwpk-theme-search-results" style="margin-left: 10px; color: #666;"></span>
+            </div>
             <p>
                 <button type="button" class="button" id="cwpk-refresh-themes">Refresh List</button>
                 <button type="button" class="button button-primary" id="cwpk-download-selected-themes">Download Selected</button>
@@ -644,6 +648,10 @@ class CWPK_Theme_Manager {
                     $(document).on('click', '.cwpk-install-theme', this.installTheme.bind(this));
                     $(document).on('click', '.cwpk-activate-theme', this.activateTheme.bind(this));
                     $(document).on('click', '.cwpk-delete-theme', this.deleteTheme.bind(this));
+
+                    // Search functionality
+                    $('#cwpk-theme-search').on('keyup', this.filterThemes.bind(this));
+                    $('#cwpk-theme-search').on('search', this.filterThemes.bind(this)); // Handles clicking the X in search field
                 },
 
                 loadManifest: function() {
@@ -864,6 +872,42 @@ class CWPK_Theme_Manager {
 
                 toggleSelectAll: function(e) {
                     $('.cwpk-theme-check:not(:disabled)').prop('checked', e.target.checked);
+                },
+
+                filterThemes: function() {
+                    var searchTerm = $('#cwpk-theme-search').val().toLowerCase();
+                    var visibleCount = 0;
+                    var totalCount = 0;
+
+                    $('.cwpk-theme-row').each(function() {
+                        var row = $(this);
+                        var themeName = row.find('.cwpk-theme-name').text().toLowerCase();
+
+                        totalCount++;
+
+                        if (searchTerm === '' || themeName.indexOf(searchTerm) !== -1) {
+                            row.show();
+                            visibleCount++;
+                        } else {
+                            row.hide();
+                        }
+                    });
+
+                    // Update results count
+                    if (searchTerm === '') {
+                        $('#cwpk-theme-search-results').text('');
+                    } else {
+                        $('#cwpk-theme-search-results').text('Showing ' + visibleCount + ' of ' + totalCount + ' themes');
+                    }
+
+                    // Handle "no results" message
+                    if (visibleCount === 0 && totalCount > 0) {
+                        if ($('#cwpk-no-theme-results').length === 0) {
+                            $('#cwpk-theme-list').append('<tr id="cwpk-no-theme-results"><td colspan="9" style="text-align: center; padding: 20px;">No themes found matching "' + searchTerm + '"</td></tr>');
+                        }
+                    } else {
+                        $('#cwpk-no-theme-results').remove();
+                    }
                 }
             };
 

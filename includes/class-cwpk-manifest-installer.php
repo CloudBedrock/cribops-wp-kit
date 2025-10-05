@@ -117,11 +117,26 @@ class CWPK_Manifest_Installer {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
+        // Clear the plugin cache to ensure we get fresh data
+        wp_cache_delete('plugins', 'plugins');
+
         $installed_plugins = get_plugins();
 
         foreach ($installed_plugins as $plugin_file => $plugin_info) {
+            // Get the plugin directory name
             $plugin_slug = dirname($plugin_file);
-            if ($plugin_slug === '.' || $plugin_slug === $slug) {
+
+            // Handle single-file plugins (where dirname returns '.')
+            if ($plugin_slug === '.') {
+                // For single-file plugins, use the filename without extension as slug
+                $plugin_slug = basename($plugin_file, '.php');
+            }
+
+            // Check various possible matches
+            if ($plugin_slug === $slug ||
+                strpos($plugin_file, $slug . '/') === 0 ||
+                strpos($plugin_file, $slug . '.php') === 0) {
+
                 if (is_plugin_active($plugin_file)) {
                     return 'active';
                 } else {
@@ -531,6 +546,9 @@ class CWPK_Manifest_Installer {
     public function ajax_get_manifest() {
         check_ajax_referer('cwpk_manifest_nonce', 'security');
 
+        // Clear plugin cache before getting manifest to ensure fresh data
+        wp_cache_delete('plugins', 'plugins');
+
         $manifest = $this->get_plugin_manifest();
 
         if (is_wp_error($manifest)) {
@@ -878,10 +896,20 @@ class CWPK_Manifest_Installer {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
 
+        // Clear the plugin cache to ensure we get fresh data
+        wp_cache_delete('plugins', 'plugins');
+
         $installed_plugins = get_plugins();
 
         foreach ($installed_plugins as $plugin_file => $plugin_info) {
-            if (strpos($plugin_file, $plugin_slug . '/') === 0 || $plugin_file === $plugin_slug . '.php') {
+            // Get the plugin directory name
+            $plugin_dir = dirname($plugin_file);
+
+            // Check various possible matches
+            if (strpos($plugin_file, $plugin_slug . '/') === 0 ||
+                $plugin_file === $plugin_slug . '.php' ||
+                $plugin_dir === $plugin_slug ||
+                ($plugin_dir === '.' && basename($plugin_file, '.php') === $plugin_slug)) {
                 return $plugin_file;
             }
         }
@@ -992,12 +1020,19 @@ class CWPK_Manifest_Installer {
             return;
         }
 
+        // Clear plugin cache on page load to ensure fresh data
+        wp_cache_delete('plugins', 'plugins');
+
         // Display any slug mismatches
         $this->display_slug_mismatches();
 
         ?>
         <div id="cwpk-manifest-installer">
             <h3>Available Plugins</h3>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="cwpk-plugin-search" placeholder="Search plugins by name..." style="width: 300px; padding: 5px;">
+                <span id="cwpk-search-results" style="margin-left: 10px; color: #666;"></span>
+            </div>
             <p>
                 <button type="button" class="button" id="cwpk-refresh-manifest">Refresh List</button>
                 <button type="button" class="button button-primary" id="cwpk-download-selected">Download Selected</button>
@@ -1049,6 +1084,10 @@ class CWPK_Manifest_Installer {
                     $(document).on('click', '.cwpk-activate', this.activatePlugin.bind(this));
                     $(document).on('click', '.cwpk-deactivate', this.deactivatePlugin.bind(this));
                     $(document).on('click', '.cwpk-delete', this.deletePlugin.bind(this));
+
+                    // Search functionality
+                    $('#cwpk-plugin-search').on('keyup', this.filterPlugins.bind(this));
+                    $('#cwpk-plugin-search').on('search', this.filterPlugins.bind(this)); // Handles clicking the X in search field
                 },
 
                 installPlugin: function(e) {
@@ -1204,31 +1243,10 @@ class CWPK_Manifest_Installer {
                         security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
                     }, function(response) {
                         if (response.success) {
-                            // Check if downloaded file still exists
-                            var pluginIndex = -1;
-                            self.plugins.forEach(function(p, index) {
-                                if (p.slug === plugin) {
-                                    pluginIndex = index;
-                                    // Check if file is downloaded
-                                    if (p.local) {
-                                        // File exists, show as downloaded
-                                        p.status = 'downloaded';
-                                        statusCell.html('<span class="dashicons dashicons-download"></span> Downloaded');
-                                        statusCell.removeClass('cwpk-status-active cwpk-status-inactive').addClass('cwpk-status-downloaded');
-                                        button.closest('td').html('<button class="button button-small cwpk-install" data-plugin="' + plugin + '">Install</button>' +
-                                            ' <button class="button button-small cwpk-redownload" data-plugin-index="' + pluginIndex + '">Re-download</button>');
-                                    } else {
-                                        // No file, show as available
-                                        p.status = 'not_installed';
-                                        statusCell.html('<span class="dashicons dashicons-cloud"></span> Available');
-                                        statusCell.removeClass('cwpk-status-active cwpk-status-inactive').addClass('cwpk-status-available');
-                                        button.closest('td').html('<button class="button button-small cwpk-download-single" data-plugin-index="' + pluginIndex + '">Download</button>');
-                                    }
-
-                                    // Re-enable checkbox
-                                    row.find('.cwpk-plugin-check').prop('disabled', false);
-                                }
-                            });
+                            // Refresh the manifest to get accurate status
+                            setTimeout(function() {
+                                self.loadManifest();
+                            }, 500); // Small delay to ensure WordPress cache is updated
                         } else {
                             button.text('Delete').prop('disabled', false);
                             statusCell.html('<span class="dashicons dashicons-warning"></span> Error');
@@ -1251,9 +1269,11 @@ class CWPK_Manifest_Installer {
                 loadManifest: function() {
                     $('#cwpk-manifest-status').text('Loading plugin list...');
 
+                    // Add a cache buster to force fresh data
                     $.post(ajaxurl, {
                         action: 'cwpk_get_manifest',
-                        security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>'
+                        security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>',
+                        _nocache: Date.now() // Cache buster
                     }, function(response) {
                         if (response.success) {
                             manifestInstaller.plugins = response.data;
@@ -1262,6 +1282,8 @@ class CWPK_Manifest_Installer {
                         } else {
                             $('#cwpk-manifest-status').text('Error: ' + response.data);
                         }
+                    }).fail(function() {
+                        $('#cwpk-manifest-status').text('Failed to load plugin list. Please refresh the page.');
                     });
                 },
 
@@ -1395,6 +1417,42 @@ class CWPK_Manifest_Installer {
 
                 toggleSelectAll: function(e) {
                     $('.cwpk-plugin-check:not(:disabled)').prop('checked', e.target.checked);
+                },
+
+                filterPlugins: function() {
+                    var searchTerm = $('#cwpk-plugin-search').val().toLowerCase();
+                    var visibleCount = 0;
+                    var totalCount = 0;
+
+                    $('.cwpk-plugin-row').each(function() {
+                        var row = $(this);
+                        var pluginName = row.find('.cwpk-plugin-name').text().toLowerCase();
+
+                        totalCount++;
+
+                        if (searchTerm === '' || pluginName.indexOf(searchTerm) !== -1) {
+                            row.show();
+                            visibleCount++;
+                        } else {
+                            row.hide();
+                        }
+                    });
+
+                    // Update results count
+                    if (searchTerm === '') {
+                        $('#cwpk-search-results').text('');
+                    } else {
+                        $('#cwpk-search-results').text('Showing ' + visibleCount + ' of ' + totalCount + ' plugins');
+                    }
+
+                    // Handle "no results" message
+                    if (visibleCount === 0 && totalCount > 0) {
+                        if ($('#cwpk-no-results').length === 0) {
+                            $('#cwpk-manifest-list').append('<tr id="cwpk-no-results"><td colspan="10" style="text-align: center; padding: 20px;">No plugins found matching "' + searchTerm + '"</td></tr>');
+                        }
+                    } else {
+                        $('#cwpk-no-results').remove();
+                    }
                 }
             };
 
