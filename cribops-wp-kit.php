@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.47
+ * Version:     1.0.48
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -25,7 +25,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.47';
+        const VERSION = '1.0.48';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -788,13 +788,13 @@ if (!class_exists('CribOpsWPKit')) {
                     $hide_notices = get_option('launchkit_hide_notices', false);
                     if ($hide_notices) {
                         echo '<style>
-                            body.wp-admin #lmnExt, 
+                            body.wp-admin #lmnExt,
                             body.wp-admin #wp-admin-bar-seedprod_admin_bar,
-                            body.wp-admin .update-nag,
-                            body.wp-admin .updated,
-                            body.wp-admin .error, 
-                            body.wp-admin .is-dismissible,
-                            body.wp-admin .notice,
+                            body.wp-admin .update-nag:not(.cloudbedrock_plugin),
+                            body.wp-admin .updated:not(.cloudbedrock_plugin),
+                            body.wp-admin .error:not(.cloudbedrock_plugin),
+                            body.wp-admin .is-dismissible:not(.cloudbedrock_plugin),
+                            body.wp-admin .notice:not(.cloudbedrock_plugin),
                             body.wp-admin .wp-pointer-left,
                             #yoast-indexation-warning,
                             li#wp-admin-bar-searchwp_support,
@@ -805,7 +805,7 @@ if (!class_exists('CribOpsWPKit')) {
                             .woocommerce-layout__header-tasks-reminder-bar,
                             #woocommerce-activity-panel #activity-panel-tab-setup,
                             span.wp-ui-notification.searchwp-menu-notification-counter,
-                            .yzp-heading, 
+                            .yzp-heading,
                             .youzify-affiliate-banner,
                             .pms-cross-promo,
                             .yzp-heading,
@@ -813,10 +813,11 @@ if (!class_exists('CribOpsWPKit')) {
                             {
                                 display: none !important;
                             }
-                            .lf-always-show-notice{ display:block!important;}
-                            a.searchwp-sidebar-add-license-key, 
-                            a.searchwp-sidebar-add-license-key:hover, 
-                            a.searchwp-sidebar-add-license-key:focus, 
+                            .lf-always-show-notice,
+                            .cloudbedrock_plugin { display:block!important;}
+                            a.searchwp-sidebar-add-license-key,
+                            a.searchwp-sidebar-add-license-key:hover,
+                            a.searchwp-sidebar-add-license-key:focus,
                             a.searchwp-sidebar-add-license-key:active {
                                 color: rgba(240,246,252,.7) !important;
                                 background-color: inherit !important;
