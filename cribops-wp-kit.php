@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.0.53
+ * Version:     1.1.0
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -26,7 +26,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.0.53';
+        const VERSION = '1.1.0';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -110,6 +110,9 @@ if (!class_exists('CribOpsWPKit')) {
             // Load configuration first
             require_once('includes/class-cwpk-config.php');
 
+            // Load authentication handler
+            require_once('includes/class-cwpk-auth.php');
+
             // Load other components
             require_once('includes/class-cwpk-deleter.php');
             require_once('includes/class-cwpk-functions.php');
@@ -121,6 +124,9 @@ if (!class_exists('CribOpsWPKit')) {
             require_once('includes/class-cwpk-theme-manager.php');
             // require_once('includes/class-cwpk-updater.php'); // Disabled - using GitHub updater
             require_once('includes/class-cwpk-github-updater.php');
+
+            // Check authentication on admin init
+            add_action('admin_init', array('CWPKAuth', 'check_authentication'));
         }
 
         public function setup_constants() {
@@ -289,7 +295,17 @@ if (!class_exists('CribOpsWPKit')) {
     </div>
 
     <!-- Inline Login Area -->
-    <?php if ( get_transient('lk_logged_in') ) : ?>
+    <?php
+    $auth_type = CWPKAuth::get_auth_type();
+    if ( $auth_type === 'token' ) :
+        // Token authentication - no logout needed
+    ?>
+      <div class="cwpk-dashboard__login" style="margin-left:50px; align-items: center;border: 1px solid #28a745;padding: 8px 12px; border-radius: 4px; background: #d4edda;display: flex;">
+        <span style="color: #155724;"><?php esc_html_e('Authenticated via API Token', 'cwpk'); ?></span>
+      </div>
+    <?php elseif ( $auth_type === 'credentials' ) :
+        // Username/password authentication - show logout
+    ?>
       <div class="cwpk-dashboard__login" style="margin-left:50px; align-items: center;border: 1px solid #ddd;padding: 8px 12px; border-radius: 4px; background: #f9f9f9;display: flex;">
         <span><?php esc_html_e('Logged in as: ******', 'cwpk'); ?></span>
         &nbsp;|&nbsp;

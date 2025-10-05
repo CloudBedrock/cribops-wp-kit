@@ -126,18 +126,26 @@ class CWPKInstaller {
      * Main "Installer" / Installer Page
      */
     public function lk_get_meta_plugin_installer_page() {
-        // Check transients set by your "header login" code
-        $logged_in = get_transient('lk_logged_in');
+        // Check authentication using the new auth system
+        $is_authenticated = CWPKAuth::is_authenticated();
         $user_data = get_transient('lk_user_data');
+        $auth_type = CWPKAuth::get_auth_type();
 
         // Standard WP admin wrap
       //  echo '<div class="wrap">';
         echo '<h1>Software Bundle Plugin Installer</h1>';
 
         // If not logged in
-        if (! $logged_in) {
+        if (! $is_authenticated) {
             echo '<p>Unlock All Features By Subscribing To <a href="https://cribops.com/pricing" target="_blank">CribOps WP-Kit Software Bundle</a></p>';
-            echo '<div class="cwpk-notice"><p>You are logged-out. Please log in via the header using your CribOps username and password.</p></div>';
+
+            // Check if bearer token is configured but invalid
+            $token = CWPKAuth::get_env_bearer_token();
+            if ($token) {
+                echo '<div class="cwpk-notice" style="background: #fff3cd; border-left-color: #ffc107;"><p>Bearer token found but authentication failed. Please check your token configuration or use username/password login.</p></div>';
+            } else {
+                echo '<div class="cwpk-notice"><p>You are logged-out. Please log in via the header using your CribOps username and password.</p></div>';
+            }
             echo '</div>'; // .wrap
             return;
         }

@@ -367,9 +367,3 @@ Public License instead of this License.
 WRITTEN OFFER
 
 The source code for CribOps WP Kit can be freely obtained at the following URL:
-
-	https://github.com/CloudBedrock/cribops-wp-kit
-
-The original LaunchKit Pro source code can be obtained at:
-
-	https://github.com/wplaunchify/launchkit-pro
