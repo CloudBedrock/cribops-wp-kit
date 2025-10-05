@@ -197,6 +197,21 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.0.53 (2025-10-05)
+- Fixed plugin installation status detection on fresh WordPress installs
+- Clear WordPress plugin cache to ensure accurate status display
+- Improved plugin slug matching for various directory structures
+- Added search/filter functionality to plugin installer screen
+- Added search/filter functionality to theme installer screen
+- Added search/filter functionality to packages screen
+- Real-time filtering with result counts and no-results handling
+
+### Version 1.0.52 (2025-10-05)
+- Added proper GPL attribution and architectural documentation
+- Updated README with comprehensive architectural overview
+- Added AUTHORS.md file with complete attribution history
+- Enhanced code documentation and licensing information
+
 ### Version 1.0.51 (2025-10-05)
 - Fixed MainWP Child button to properly show installed state
 
