@@ -25,6 +25,15 @@ class CWPKAuth {
         ];
 
         foreach ($possible_vars as $var) {
+            // First check if it's defined as a PHP constant (from wp-config.php)
+            if (defined($var)) {
+                $token = constant($var);
+                if (!empty($token)) {
+                    return $token;
+                }
+            }
+
+            // Then check environment variables
             $token = getenv($var);
             if (!empty($token)) {
                 return $token;
