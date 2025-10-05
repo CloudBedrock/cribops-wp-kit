@@ -583,13 +583,70 @@ class CWPKInstaller {
     }
 
     /**
-     * AJAX: check_for_updates (deprecated - kept for backward compatibility)
+     * AJAX: check_for_updates - Re-download all plugins from manifest
      */
     public function check_for_updates_callback() {
         check_ajax_referer('check_for_updates_nonce', 'security');
 
-        // Since we're now using the API method exclusively, just return success
-        wp_send_json_success(['message' => 'Plugin list will be refreshed from API']);
+        if (!class_exists('CWPK_Manifest_Installer')) {
+            require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-cwpk-manifest-installer.php';
+        }
+
+        $manifest_installer = new CWPK_Manifest_Installer();
+        $plugins = $manifest_installer->get_plugin_manifest();
+
+        if (is_wp_error($plugins)) {
+            wp_send_json_error('Failed to fetch plugin manifest: ' . $plugins->get_error_message());
+        }
+
+        $updated = 0;
+        $errors = array();
+
+        // Get list of currently installed plugins to check for updates
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $installed_plugins = get_plugins();
+
+        foreach ($plugins as $plugin) {
+            // Skip if no download URL available
+            if (empty($plugin['slug'])) {
+                continue;
+            }
+
+            // Check if plugin is installed and get version
+            $is_installed = false;
+            $installed_version = null;
+
+            foreach ($installed_plugins as $plugin_file => $plugin_info) {
+                $plugin_slug = dirname($plugin_file);
+                if ($plugin_slug === $plugin['slug']) {
+                    $is_installed = true;
+                    $installed_version = $plugin_info['Version'];
+                    break;
+                }
+            }
+
+            // Only re-download if plugin is installed (to update it)
+            if (!$is_installed) {
+                continue;
+            }
+
+            // Re-download the plugin to get latest version
+            $result = $manifest_installer->download_plugin($plugin);
+
+            if (is_wp_error($result)) {
+                $errors[] = $plugin['name'] . ': ' . $result->get_error_message();
+            } else {
+                $updated++;
+            }
+        }
+
+        if (!empty($errors)) {
+            wp_send_json_error('Downloaded ' . $updated . ' plugin(s). Errors: ' . implode(', ', $errors));
+        } else {
+            wp_send_json_success('Successfully updated ' . $updated . ' plugin bundle file(s)');
+        }
     }
 
     /**
