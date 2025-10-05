@@ -30,3 +30,9 @@ vendor/
 # Plugin specific
 /cribops-wp-kit/
 /prime-mover-export-files/
+
+# Documentation files (development only)
+SETUP_INSTRUCTIONS.md
+TESTING_CHECKLIST.md
+THEME_DEPLOYMENT_GUIDE.md
+THEME_IMPLEMENTATION_SUMMARY.md
