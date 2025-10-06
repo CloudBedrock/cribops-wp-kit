@@ -125,6 +125,14 @@ class CWPK_MainWP_Child {
                 $result = $this->install_single_plugin($args);
                 break;
 
+            case 'download_plugin':
+                $result = $this->download_plugin($args);
+                break;
+
+            case 'install_plugin':
+                $result = $this->install_plugin($args);
+                break;
+
             case 'activate_plugin':
                 $result = $this->activate_plugin($args);
                 break;
@@ -596,7 +604,15 @@ class CWPK_MainWP_Child {
 
         if (is_wp_error($api)) {
             // Try CribOps repository
-            return $this->install_from_cribops_repo($plugin_slug, $activate);
+            $result = $this->install_from_cribops_repo($plugin_slug, $activate);
+
+            // Check if result contains an error
+            if (isset($result['error'])) {
+                // Return error in a format MainWP JavaScript can detect
+                return $result;
+            }
+
+            return $result;
         }
 
         // Install the plugin
@@ -635,29 +651,77 @@ class CWPK_MainWP_Child {
 
     /**
      * Install from CribOps repository
+     * This runs on the CHILD SITE and uses the child site's own manifest installer
      */
     private function install_from_cribops_repo($plugin_slug, $activate = false) {
-        // Check if we have a CWPK_Installer class
-        if (class_exists('CWPK_Installer')) {
-            $installer = new CWPK_Installer();
-            $result = $installer->install_plugin($plugin_slug);
-
-            if ($result && $activate) {
-                $plugin_file = $this->get_plugin_file($plugin_slug);
-                if ($plugin_file) {
-                    activate_plugin($plugin_file);
-                }
-            }
-
-            return array(
-                'success' => $result,
-                'installed' => $result,
-                'activated' => $activate && $result,
-                'message' => $result ? 'Plugin installed from CribOps repository' : 'Installation failed'
-            );
+        // Use the child site's manifest installer
+        if (!class_exists('CWPK_Manifest_Installer')) {
+            require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-cwpk-manifest-installer.php';
         }
 
-        return array('error' => 'CribOps installer not available');
+        $manifest_installer = new CWPK_Manifest_Installer();
+
+        // Get the plugin manifest from child site's repository
+        $manifest = $manifest_installer->get_plugin_manifest();
+        if (is_wp_error($manifest)) {
+            return array('error' => 'Failed to get plugin manifest: ' . $manifest->get_error_message());
+        }
+
+        // Find the plugin in the manifest
+        $plugin_data = null;
+        foreach ($manifest as $plugin) {
+            if ($plugin['slug'] === $plugin_slug) {
+                $plugin_data = $plugin;
+                break;
+            }
+        }
+
+        if (!$plugin_data) {
+            return array('error' => 'Plugin not found in repository');
+        }
+
+        // Download the plugin if not already downloaded
+        if ($plugin_data['status'] === 'not_installed' || empty($plugin_data['local'])) {
+            $download_result = $manifest_installer->download_plugin($plugin_data);
+            if (is_wp_error($download_result)) {
+                return array('error' => 'Download failed: ' . $download_result->get_error_message());
+            }
+        }
+
+        // Install the plugin
+        $upload_dir = wp_upload_dir();
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
+        $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+
+        if (!file_exists($file_path)) {
+            return array('error' => 'Plugin file not found');
+        }
+
+        WP_Filesystem();
+        $result = unzip_file($file_path, WP_PLUGIN_DIR);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Installation failed: ' . $result->get_error_message());
+        }
+
+        // Activate if requested
+        $activated = false;
+        if ($activate) {
+            $plugin_file = $this->get_plugin_file($plugin_slug);
+            if ($plugin_file) {
+                $activate_result = activate_plugin($plugin_file);
+                if (!is_wp_error($activate_result)) {
+                    $activated = true;
+                }
+            }
+        }
+
+        return array(
+            'success' => true,
+            'installed' => true,
+            'activated' => $activated,
+            'message' => 'Plugin installed' . ($activated ? ' and activated' : '')
+        );
     }
 
     /**
@@ -686,14 +750,104 @@ class CWPK_MainWP_Child {
     }
 
     /**
+     * Download a plugin from repository
+     */
+    private function download_plugin($args) {
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
+        }
+
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+
+        // Use the child site's manifest installer
+        if (!class_exists('CWPK_Manifest_Installer')) {
+            require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-cwpk-manifest-installer.php';
+        }
+
+        $manifest_installer = new CWPK_Manifest_Installer();
+
+        // Get the plugin manifest
+        $manifest = $manifest_installer->get_plugin_manifest();
+        if (is_wp_error($manifest)) {
+            return array('error' => 'Failed to get plugin manifest: ' . $manifest->get_error_message());
+        }
+
+        // Find the plugin in the manifest
+        $plugin_data = null;
+        foreach ($manifest as $plugin) {
+            if ($plugin['slug'] === $plugin_slug) {
+                $plugin_data = $plugin;
+                break;
+            }
+        }
+
+        if (!$plugin_data) {
+            return array('error' => 'Plugin not found in repository');
+        }
+
+        // Download the plugin
+        $result = $manifest_installer->download_plugin($plugin_data);
+        if (is_wp_error($result)) {
+            return array('error' => 'Download failed: ' . $result->get_error_message());
+        }
+
+        self::log_activity('plugin_download', 'Downloaded plugin: ' . $plugin_slug);
+
+        return array(
+            'success' => true,
+            'message' => 'Plugin downloaded successfully'
+        );
+    }
+
+    /**
+     * Install a plugin from downloaded file
+     */
+    private function install_plugin($args) {
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
+        }
+
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+
+        // Check if plugin file exists
+        $upload_dir = wp_upload_dir();
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
+        $file_path = $target_dir . '/' . $plugin_slug . '.zip';
+
+        if (!file_exists($file_path)) {
+            return array('error' => 'Plugin file not found. Please download it first.');
+        }
+
+        // Install the plugin
+        WP_Filesystem();
+        $result = unzip_file($file_path, WP_PLUGIN_DIR);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Installation failed: ' . $result->get_error_message());
+        }
+
+        self::log_activity('plugin_install', 'Installed plugin: ' . $plugin_slug);
+
+        return array(
+            'success' => true,
+            'message' => 'Plugin installed successfully'
+        );
+    }
+
+    /**
      * Activate a plugin
      */
     private function activate_plugin($args) {
-        if (!isset($args['plugin_file'])) {
-            return array('error' => 'No plugin file provided');
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
         }
 
-        $plugin_file = sanitize_text_field($args['plugin_file']);
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+        $plugin_file = $this->get_plugin_file($plugin_slug);
+
+        if (!$plugin_file) {
+            return array('error' => 'Plugin not found');
+        }
 
         if (!function_exists('activate_plugin')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -705,7 +859,7 @@ class CWPK_MainWP_Child {
             return array('error' => 'Activation failed: ' . $result->get_error_message());
         }
 
-        self::log_activity('plugin_activate', 'Activated plugin: ' . $plugin_file);
+        self::log_activity('plugin_activate', 'Activated plugin: ' . $plugin_slug);
 
         return array(
             'success' => true,
@@ -717,11 +871,16 @@ class CWPK_MainWP_Child {
      * Deactivate a plugin
      */
     private function deactivate_plugin($args) {
-        if (!isset($args['plugin_file'])) {
-            return array('error' => 'No plugin file provided');
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
         }
 
-        $plugin_file = sanitize_text_field($args['plugin_file']);
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+        $plugin_file = $this->get_plugin_file($plugin_slug);
+
+        if (!$plugin_file) {
+            return array('error' => 'Plugin not found');
+        }
 
         if (!function_exists('deactivate_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -729,7 +888,7 @@ class CWPK_MainWP_Child {
 
         deactivate_plugins($plugin_file);
 
-        self::log_activity('plugin_deactivate', 'Deactivated plugin: ' . $plugin_file);
+        self::log_activity('plugin_deactivate', 'Deactivated plugin: ' . $plugin_slug);
 
         return array(
             'success' => true,
@@ -741,11 +900,16 @@ class CWPK_MainWP_Child {
      * Delete a plugin
      */
     private function delete_plugin($args) {
-        if (!isset($args['plugin_file'])) {
-            return array('error' => 'No plugin file provided');
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
         }
 
-        $plugin_file = sanitize_text_field($args['plugin_file']);
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+        $plugin_file = $this->get_plugin_file($plugin_slug);
+
+        if (!$plugin_file) {
+            return array('error' => 'Plugin not found');
+        }
 
         if (!function_exists('delete_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';

@@ -75,8 +75,33 @@ class CWPKPluginManager {
      * @return bool
      */
     private function user_has_access() {
-        $user_data = get_transient( 'lk_user_data' );
-        return ( $user_data && ! empty( $user_data['can_access_launchkit'] ) );
+        // Use the centralized auth check which handles both bearer token and email/password
+        if (!class_exists('CWPKAuth')) {
+            return false;
+        }
+
+        // Check if authenticated via any method and refresh if needed
+        if (!CWPKAuth::is_authenticated()) {
+            return false;
+        }
+
+        // Ensure user data is fresh - if it's missing but we're authenticated, refresh it
+        $user_data = get_transient('lk_user_data');
+        if (!$user_data) {
+            // Try to refresh authentication
+            $token = CWPKAuth::get_env_bearer_token();
+            if ($token) {
+                $result = CWPKAuth::authenticate_with_token($token);
+                if (!is_wp_error($result)) {
+                    set_transient('cwpk_token_auth', true, HOUR_IN_SECONDS);
+                    set_transient('lk_user_data', $result, HOUR_IN_SECONDS);
+                    set_transient('lk_logged_in', true, HOUR_IN_SECONDS);
+                    $user_data = $result;
+                }
+            }
+        }
+
+        return ($user_data && !empty($user_data['can_access_launchkit']));
     }
 
     /**
