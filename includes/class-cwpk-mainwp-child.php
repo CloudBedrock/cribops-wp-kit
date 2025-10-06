@@ -414,11 +414,17 @@ class CWPK_MainWP_Child {
         return array(
             'cribops_data' => array(
                 'cribops_installed' => true,
-                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.6'),
+                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.7'),
                 'cribops_active' => true,
                 'last_sync' => current_time('mysql'),
                 'settings' => get_option('cwpk_settings', array()),
-                'auth_status' => get_transient('lk_logged_in') ? 'authenticated' : 'not_authenticated'
+                'auth_status' => get_transient('lk_logged_in') ? 'authenticated' : 'not_authenticated',
+                'auth_config' => array(
+                    'auth_type' => get_option('cwpk_auth_type', 'email'),
+                    'api_endpoint' => get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/'),
+                    'has_bearer_token' => !empty(get_option('cwpk_bearer_token', '')),
+                    'repository_configured' => true
+                )
             )
         );
     }
@@ -432,7 +438,13 @@ class CWPK_MainWP_Child {
             'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : CribOpsWPKit::VERSION,
             'cribops_active' => true,
             'settings_count' => count(get_option('cwpk_settings', array())),
-            'authenticated' => get_transient('lk_logged_in') ? true : false
+            'authenticated' => get_transient('lk_logged_in') ? true : false,
+            'auth_config' => array(
+                'auth_type' => get_option('cwpk_auth_type', 'email'),
+                'api_endpoint' => get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/'),
+                'has_bearer_token' => !empty(get_option('cwpk_bearer_token', '')),
+                'repository_configured' => true
+            )
         );
 
         return $information;
