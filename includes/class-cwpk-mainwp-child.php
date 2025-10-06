@@ -126,7 +126,7 @@ class CWPK_MainWP_Child {
     private function get_plugin_status() {
         $status = array(
             'installed' => true,
-            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.5'),
+            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.6'),
             'active' => true,
             'php_version' => PHP_VERSION,
             'wp_version' => get_bloginfo('version'),
@@ -373,7 +373,7 @@ class CWPK_MainWP_Child {
         return array(
             'cribops_data' => array(
                 'cribops_installed' => true,
-                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.5'),
+                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.6'),
                 'cribops_active' => true,
                 'last_sync' => current_time('mysql'),
                 'settings' => get_option('cwpk_settings', array()),
