@@ -45,59 +45,79 @@ class CWPK_MainWP_Child {
 
     /**
      * Handle MainWP Dashboard requests
+     *
+     * @param array $information The information array to be returned
+     * @param array $post The POST data from MainWP Dashboard
      */
-    public function handle_mainwp_request($information, $action) {
-        if (!isset($information['action'])) {
+    public function handle_mainwp_request($information, $post) {
+        // The action comes in the $post array, not $information
+        if (!isset($post['action'])) {
             return $information;
         }
 
         // Check if this is a CribOps action
-        if (strpos($information['action'], 'cribops_') !== 0) {
+        if (strpos($post['action'], 'cribops_') !== 0) {
             return $information;
         }
 
-        // Get the specific action
-        $action = str_replace('cribops_', '', $information['action']);
-        $args = isset($information['args']) ? $information['args'] : array();
+        // Get the specific action from POST data
+        $action = str_replace('cribops_', '', $post['action']);
+        $args = isset($post['args']) ? $post['args'] : array();
 
-        // Handle the action
+        // Handle the action and merge result into information array
+        $result = array();
+
         switch ($action) {
             case 'get_status':
-                return $this->get_plugin_status();
+                $result = $this->get_plugin_status();
+                break;
 
             case 'get_settings':
-                return $this->get_plugin_settings();
+                $result = $this->get_plugin_settings();
+                break;
 
             case 'update_settings':
-                return $this->update_plugin_settings($args);
+                $result = $this->update_plugin_settings($args);
+                break;
 
             case 'install_plugins':
-                return $this->install_plugin_recipe($args);
+                $result = $this->install_plugin_recipe($args);
+                break;
 
             case 'get_installed_plugins':
-                return $this->get_installed_plugins_list();
+                $result = $this->get_installed_plugins_list();
+                break;
 
             case 'manage_licenses':
-                return $this->manage_license_keys($args);
+                $result = $this->manage_license_keys($args);
+                break;
 
             case 'get_logs':
-                return $this->get_activity_logs();
+                $result = $this->get_activity_logs();
+                break;
 
             case 'run_bulk_install':
-                return $this->run_bulk_installation($args);
+                $result = $this->run_bulk_installation($args);
+                break;
 
             case 'sync':
-                $sync_data = $this->sync_with_dashboard();
-                // MainWP expects the data to be saved and returned
-                if (isset($sync_data['cribops_data'])) {
-                    // Log activity
+                $result = $this->sync_with_dashboard();
+                // Log activity
+                if (isset($result['cribops_data'])) {
                     self::log_activity('mainwp_sync', 'Synced with MainWP Dashboard');
                 }
-                return $sync_data;
+                break;
 
             default:
-                return array('error' => 'Unknown CribOps action: ' . $action);
+                $result = array('error' => 'Unknown CribOps action: ' . $action);
         }
+
+        // Merge our result into the information array
+        if (!empty($result)) {
+            $information = array_merge($information, $result);
+        }
+
+        return $information;
     }
 
     /**
@@ -106,7 +126,7 @@ class CWPK_MainWP_Child {
     private function get_plugin_status() {
         $status = array(
             'installed' => true,
-            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.4'),
+            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.5'),
             'active' => true,
             'php_version' => PHP_VERSION,
             'wp_version' => get_bloginfo('version'),
@@ -353,7 +373,7 @@ class CWPK_MainWP_Child {
         return array(
             'cribops_data' => array(
                 'cribops_installed' => true,
-                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.4'),
+                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.5'),
                 'cribops_active' => true,
                 'last_sync' => current_time('mysql'),
                 'settings' => get_option('cwpk_settings', array()),
