@@ -80,8 +80,12 @@ class CWPK_MainWP_Child {
                 $result = $this->update_plugin_settings($args);
                 break;
 
-            case 'install_plugins':
-                $result = $this->install_plugin_recipe($args);
+            case 'get_available_themes':
+                $result = $this->get_available_themes();
+                break;
+
+            case 'get_available_packages':
+                $result = $this->get_available_packages();
                 break;
 
             case 'get_installed_plugins':
@@ -235,59 +239,119 @@ class CWPK_MainWP_Child {
     }
 
     /**
-     * Install plugin recipe
+     * Get available themes from CribOps repository
      */
-    private function install_plugin_recipe($args) {
-        if (!class_exists('CWPK_Installer')) {
-            return array('error' => 'CWPK_Installer class not found');
+    private function get_available_themes() {
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
+
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
         }
 
-        $recipe = isset($args['recipe']) ? $args['recipe'] : 'essential';
-        $installer = new CWPK_Installer();
-
-        // Define recipe plugins
-        $recipes = array(
-            'essential' => array(
-                'classic-editor',
-                'duplicate-post',
-                'regenerate-thumbnails',
-                'wp-mail-smtp'
-            ),
-            'security' => array(
-                'wordfence',
-                'limit-login-attempts-reloaded',
-                'wp-force-ssl'
-            ),
-            'performance' => array(
-                'wp-super-cache',
-                'autoptimize',
-                'wp-sweep'
-            ),
-            'ecommerce' => array(
-                'woocommerce',
-                'woocommerce-payments',
-                'woocommerce-pdf-invoices-packing-slips'
-            )
-        );
-
-        $plugins_to_install = isset($recipes[$recipe]) ? $recipes[$recipe] : array();
-
-        if (empty($plugins_to_install)) {
-            return array('error' => 'Invalid recipe selected');
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            );
         }
 
-        $results = array();
-        foreach ($plugins_to_install as $plugin_slug) {
-            // Use the installer's method to install plugin
-            $result = $installer->install_plugin($plugin_slug);
-            $results[$plugin_slug] = $result;
+        $response = wp_remote_get($api_endpoint . 'themes', $headers);
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available themes: ' . $response->get_error_message());
         }
 
-        return array(
-            'success' => true,
-            'recipe' => $recipe,
-            'results' => $results
-        );
+        $body = wp_remote_retrieve_body($response);
+        $themes_data = json_decode($body, true);
+
+        if (empty($themes_data)) {
+            // Return empty array if no themes available
+            $themes_data = array();
+        }
+
+        // Get installed themes for comparison
+        if (!function_exists('wp_get_themes')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+        $installed_themes = wp_get_themes();
+
+        // Format response with installation status
+        $available_themes = array();
+        foreach ($themes_data as $theme_slug => $theme_info) {
+            $installed = isset($installed_themes[$theme_slug]);
+            $active = (get_option('stylesheet') === $theme_slug);
+
+            $available_themes[] = array(
+                'slug' => $theme_slug,
+                'name' => isset($theme_info['name']) ? $theme_info['name'] : $theme_slug,
+                'version' => isset($theme_info['version']) ? $theme_info['version'] : 'latest',
+                'description' => isset($theme_info['description']) ? $theme_info['description'] : '',
+                'author' => isset($theme_info['author']) ? $theme_info['author'] : '',
+                'installed' => $installed,
+                'active' => $active
+            );
+        }
+
+        return array('themes' => $available_themes);
+    }
+
+    /**
+     * Get available packages from CribOps repository
+     */
+    private function get_available_packages() {
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
+
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
+        }
+
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            );
+        }
+
+        $response = wp_remote_get($api_endpoint . 'packages', $headers);
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available packages: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $packages_data = json_decode($body, true);
+
+        if (empty($packages_data)) {
+            // Return empty array if no packages available
+            $packages_data = array();
+        }
+
+        // Format response
+        $available_packages = array();
+        foreach ($packages_data as $package_id => $package_info) {
+            $available_packages[] = array(
+                'id' => $package_id,
+                'name' => isset($package_info['name']) ? $package_info['name'] : $package_id,
+                'description' => isset($package_info['description']) ? $package_info['description'] : '',
+                'size' => isset($package_info['size']) ? $package_info['size'] : 'Unknown',
+                'created' => isset($package_info['created']) ? $package_info['created'] : '',
+                'type' => isset($package_info['type']) ? $package_info['type'] : 'wprime'
+            );
+        }
+
+        return array('packages' => $available_packages);
     }
 
     /**
@@ -470,14 +534,15 @@ class CWPK_MainWP_Child {
             'cribops_get_status',
             'cribops_get_settings',
             'cribops_update_settings',
-            'cribops_install_plugins',
             'cribops_get_installed_plugins',
             'cribops_manage_licenses',
             'cribops_get_logs',
             'cribops_run_bulk_install',
             'cribops_sync',
-            // New enhanced functions
+            // Enhanced functions
             'cribops_get_available_plugins',
+            'cribops_get_available_themes',
+            'cribops_get_available_packages',
             'cribops_get_installed_themes',
             'cribops_install_single_plugin',
             'cribops_activate_plugin',
