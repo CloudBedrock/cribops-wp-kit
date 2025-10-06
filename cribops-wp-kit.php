@@ -126,7 +126,29 @@ if (!class_exists('CribOpsWPKit')) {
             require_once('includes/class-cwpk-github-updater.php');
 
             // Load MainWP Child integration if MainWP Child plugin is active
+            // Check multiple ways to detect MainWP Child plugin
+            $mainwp_child_active = false;
+
+            // Method 1: Check if constant is defined (may not work in all contexts)
             if (defined('MAINWP_CHILD_VERSION')) {
+                $mainwp_child_active = true;
+            }
+
+            // Method 2: Check if plugin file exists and is active
+            if (!$mainwp_child_active) {
+                include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+                if (is_plugin_active('mainwp-child/mainwp-child.php')) {
+                    $mainwp_child_active = true;
+                }
+            }
+
+            // Method 3: Check if MainWP Child classes exist
+            if (!$mainwp_child_active && class_exists('MainWP_Child')) {
+                $mainwp_child_active = true;
+            }
+
+            // Load our integration if MainWP Child is detected
+            if ($mainwp_child_active) {
                 require_once('includes/class-cwpk-mainwp-child.php');
             }
 

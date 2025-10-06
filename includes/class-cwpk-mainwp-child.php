@@ -87,7 +87,13 @@ class CWPK_MainWP_Child {
                 return $this->run_bulk_installation($args);
 
             case 'sync':
-                return $this->sync_with_dashboard();
+                $sync_data = $this->sync_with_dashboard();
+                // MainWP expects the data to be saved and returned
+                if (isset($sync_data['cribops_data'])) {
+                    // Log activity
+                    self::log_activity('mainwp_sync', 'Synced with MainWP Dashboard');
+                }
+                return $sync_data;
 
             default:
                 return array('error' => 'Unknown CribOps action: ' . $action);
@@ -100,7 +106,7 @@ class CWPK_MainWP_Child {
     private function get_plugin_status() {
         $status = array(
             'installed' => true,
-            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : CribOpsWPKit::VERSION,
+            'version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.4'),
             'active' => true,
             'php_version' => PHP_VERSION,
             'wp_version' => get_bloginfo('version'),
@@ -347,7 +353,7 @@ class CWPK_MainWP_Child {
         return array(
             'cribops_data' => array(
                 'cribops_installed' => true,
-                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : CribOpsWPKit::VERSION,
+                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.4'),
                 'cribops_active' => true,
                 'last_sync' => current_time('mysql'),
                 'settings' => get_option('cwpk_settings', array()),
@@ -425,6 +431,5 @@ class CWPK_MainWP_Child {
 }
 
 // Initialize the MainWP Child integration
-if (defined('MAINWP_CHILD_VERSION')) {
-    CWPK_MainWP_Child::get_instance();
-}
+// This file is only included when MainWP Child is detected, so we can initialize directly
+CWPK_MainWP_Child::get_instance();
