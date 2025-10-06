@@ -411,19 +411,25 @@ class CWPK_MainWP_Child {
      * Sync with MainWP Dashboard
      */
     private function sync_with_dashboard() {
+        // Determine actual auth method being used
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+        $using_bearer = !empty($bearer_token);
+
+        // Get actual API URL
+        $api_url = CWPKConfig::get_api_url();
+
         return array(
             'cribops_data' => array(
                 'cribops_installed' => true,
-                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.7'),
+                'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : (class_exists('CribOpsWPKit') ? CribOpsWPKit::VERSION : '1.1.8'),
                 'cribops_active' => true,
                 'last_sync' => current_time('mysql'),
                 'settings' => get_option('cwpk_settings', array()),
                 'auth_status' => get_transient('lk_logged_in') ? 'authenticated' : 'not_authenticated',
-                'auth_config' => array(
-                    'auth_type' => get_option('cwpk_auth_type', 'email'),
-                    'api_endpoint' => get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/'),
-                    'has_bearer_token' => !empty(get_option('cwpk_bearer_token', '')),
-                    'repository_configured' => true
+                'repository_info' => array(
+                    'api_url' => $api_url,
+                    'using_bearer' => $using_bearer,
+                    'configured' => true
                 )
             )
         );
@@ -433,17 +439,23 @@ class CWPK_MainWP_Child {
      * Add CribOps data to sync
      */
     public function sync_cribops_data($information, $data) {
+        // Determine actual auth method being used
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+        $using_bearer = !empty($bearer_token);
+
+        // Get actual API URL
+        $api_url = CWPKConfig::get_api_url();
+
         $information['cribops_data'] = array(
             'cribops_installed' => true,
             'cribops_version' => defined('WPLK_VERSION') ? WPLK_VERSION : CribOpsWPKit::VERSION,
             'cribops_active' => true,
             'settings_count' => count(get_option('cwpk_settings', array())),
             'authenticated' => get_transient('lk_logged_in') ? true : false,
-            'auth_config' => array(
-                'auth_type' => get_option('cwpk_auth_type', 'email'),
-                'api_endpoint' => get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/'),
-                'has_bearer_token' => !empty(get_option('cwpk_bearer_token', '')),
-                'repository_configured' => true
+            'repository_info' => array(
+                'api_url' => $api_url,
+                'using_bearer' => $using_bearer,
+                'configured' => true
             )
         );
 
@@ -517,16 +529,26 @@ class CWPK_MainWP_Child {
      * Get available plugins from CribOps repository
      */
     private function get_available_plugins() {
-        // Get the manifest data from CribOps API
-        $api_endpoint = get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/');
-        $bearer_token = get_option('cwpk_bearer_token', '');
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
 
-        $response = wp_remote_get($api_endpoint . 'plugins', array(
-            'headers' => array(
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
+        }
+
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
                 'Authorization' => 'Bearer ' . $bearer_token
-            ),
-            'timeout' => 30
-        ));
+            );
+        }
+
+        $response = wp_remote_get($api_endpoint . 'plugins', $headers);
 
         if (is_wp_error($response)) {
             return array('error' => 'Failed to fetch available plugins: ' . $response->get_error_message());
