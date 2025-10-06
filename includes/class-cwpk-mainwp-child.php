@@ -108,6 +108,47 @@ class CWPK_MainWP_Child {
                 }
                 break;
 
+            // New enhanced plugin/theme management actions
+            case 'get_available_plugins':
+                $result = $this->get_available_plugins();
+                break;
+
+            case 'get_installed_themes':
+                $result = $this->get_installed_themes_list();
+                break;
+
+            case 'install_single_plugin':
+                $result = $this->install_single_plugin($args);
+                break;
+
+            case 'activate_plugin':
+                $result = $this->activate_plugin($args);
+                break;
+
+            case 'deactivate_plugin':
+                $result = $this->deactivate_plugin($args);
+                break;
+
+            case 'delete_plugin':
+                $result = $this->delete_plugin($args);
+                break;
+
+            case 'install_theme':
+                $result = $this->install_theme($args);
+                break;
+
+            case 'activate_theme':
+                $result = $this->activate_theme($args);
+                break;
+
+            case 'delete_theme':
+                $result = $this->delete_theme($args);
+                break;
+
+            case 'get_plugin_details':
+                $result = $this->get_plugin_details($args);
+                break;
+
             default:
                 $result = array('error' => 'Unknown CribOps action: ' . $action);
         }
@@ -410,7 +451,18 @@ class CWPK_MainWP_Child {
             'cribops_manage_licenses',
             'cribops_get_logs',
             'cribops_run_bulk_install',
-            'cribops_sync'
+            'cribops_sync',
+            // New enhanced functions
+            'cribops_get_available_plugins',
+            'cribops_get_installed_themes',
+            'cribops_install_single_plugin',
+            'cribops_activate_plugin',
+            'cribops_deactivate_plugin',
+            'cribops_delete_plugin',
+            'cribops_install_theme',
+            'cribops_activate_theme',
+            'cribops_delete_theme',
+            'cribops_get_plugin_details'
         );
 
         return array_merge($functions, $cribops_functions);
@@ -447,6 +499,486 @@ class CWPK_MainWP_Child {
 
         update_option('cwpk_activity_logs', $logs);
         update_option('cwpk_last_activity', current_time('mysql'));
+    }
+
+    /**
+     * Get available plugins from CribOps repository
+     */
+    private function get_available_plugins() {
+        // Get the manifest data from CribOps API
+        $api_endpoint = get_option('cwpk_api_endpoint', 'https://cribops.cloudbedrock.com/api/wp-kit/v1/');
+        $bearer_token = get_option('cwpk_bearer_token', '');
+
+        $response = wp_remote_get($api_endpoint . 'plugins', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            ),
+            'timeout' => 30
+        ));
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available plugins: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $plugins_data = json_decode($body, true);
+
+        if (empty($plugins_data)) {
+            // Fallback to local manifest if API fails
+            $plugins_data = $this->get_local_plugin_manifest();
+        }
+
+        // Get installed plugins for comparison
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $installed_plugins = get_plugins();
+        $active_plugins = get_option('active_plugins', array());
+
+        // Format response with installation status
+        $available_plugins = array();
+        foreach ($plugins_data as $plugin_slug => $plugin_info) {
+            $installed = false;
+            $active = false;
+            $installed_version = '';
+
+            // Check if plugin is installed
+            foreach ($installed_plugins as $plugin_file => $plugin_data) {
+                if (strpos($plugin_file, $plugin_slug . '/') === 0) {
+                    $installed = true;
+                    $installed_version = $plugin_data['Version'];
+                    $active = in_array($plugin_file, $active_plugins);
+                    break;
+                }
+            }
+
+            $available_plugins[] = array(
+                'slug' => $plugin_slug,
+                'name' => isset($plugin_info['name']) ? $plugin_info['name'] : $plugin_slug,
+                'version' => isset($plugin_info['version']) ? $plugin_info['version'] : 'latest',
+                'description' => isset($plugin_info['description']) ? $plugin_info['description'] : '',
+                'installed' => $installed,
+                'active' => $active,
+                'installed_version' => $installed_version,
+                'update_available' => $installed && version_compare($installed_version, $plugin_info['version'], '<')
+            );
+        }
+
+        return array('plugins' => $available_plugins);
+    }
+
+    /**
+     * Get local plugin manifest fallback
+     */
+    private function get_local_plugin_manifest() {
+        // Define a basic manifest of commonly used plugins
+        return array(
+            'classic-editor' => array('name' => 'Classic Editor', 'version' => 'latest'),
+            'duplicate-post' => array('name' => 'Duplicate Post', 'version' => 'latest'),
+            'regenerate-thumbnails' => array('name' => 'Regenerate Thumbnails', 'version' => 'latest'),
+            'wp-mail-smtp' => array('name' => 'WP Mail SMTP', 'version' => 'latest'),
+            'wordfence' => array('name' => 'Wordfence Security', 'version' => 'latest'),
+            'limit-login-attempts-reloaded' => array('name' => 'Limit Login Attempts Reloaded', 'version' => 'latest'),
+            'wp-super-cache' => array('name' => 'WP Super Cache', 'version' => 'latest'),
+            'autoptimize' => array('name' => 'Autoptimize', 'version' => 'latest'),
+            'woocommerce' => array('name' => 'WooCommerce', 'version' => 'latest'),
+            'elementor' => array('name' => 'Elementor', 'version' => 'latest'),
+            'yoast-seo' => array('name' => 'Yoast SEO', 'version' => 'latest'),
+            'contact-form-7' => array('name' => 'Contact Form 7', 'version' => 'latest'),
+        );
+    }
+
+    /**
+     * Get installed themes list
+     */
+    private function get_installed_themes_list() {
+        if (!function_exists('wp_get_themes')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+
+        $all_themes = wp_get_themes();
+        $active_theme = wp_get_theme();
+
+        $themes_list = array();
+        foreach ($all_themes as $theme_slug => $theme) {
+            $themes_list[] = array(
+                'slug' => $theme_slug,
+                'name' => $theme->get('Name'),
+                'version' => $theme->get('Version'),
+                'author' => $theme->get('Author'),
+                'active' => ($active_theme->get_stylesheet() === $theme_slug),
+                'parent_theme' => $theme->parent() ? $theme->parent()->get('Name') : '',
+                'screenshot' => $theme->get_screenshot()
+            );
+        }
+
+        return array('themes' => $themes_list);
+    }
+
+    /**
+     * Install a single plugin
+     */
+    private function install_single_plugin($args) {
+        if (!isset($args['plugin_slug'])) {
+            return array('error' => 'No plugin slug provided');
+        }
+
+        $plugin_slug = sanitize_text_field($args['plugin_slug']);
+        $activate = isset($args['activate']) ? (bool)$args['activate'] : false;
+
+        // Include necessary files
+        if (!function_exists('plugins_api')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
+        }
+        if (!class_exists('Plugin_Upgrader')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        }
+        if (!class_exists('WP_Ajax_Upgrader_Skin')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
+        }
+
+        // Try to get plugin info from WordPress.org
+        $api = plugins_api('plugin_information', array(
+            'slug' => $plugin_slug,
+            'fields' => array(
+                'short_description' => false,
+                'sections' => false,
+                'requires' => false,
+                'rating' => false,
+                'ratings' => false,
+                'downloaded' => false,
+                'last_updated' => false,
+                'added' => false,
+                'tags' => false,
+                'compatibility' => false,
+                'homepage' => false,
+                'donate_link' => false,
+            ),
+        ));
+
+        if (is_wp_error($api)) {
+            // Try CribOps repository
+            return $this->install_from_cribops_repo($plugin_slug, $activate);
+        }
+
+        // Install the plugin
+        $upgrader = new Plugin_Upgrader(new WP_Ajax_Upgrader_Skin());
+        $result = $upgrader->install($api->download_link);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Installation failed: ' . $result->get_error_message());
+        }
+
+        // Get the installed plugin file
+        $plugin_file = $this->get_plugin_file($plugin_slug);
+
+        if ($activate && $plugin_file) {
+            $activated = activate_plugin($plugin_file);
+            if (is_wp_error($activated)) {
+                return array(
+                    'success' => true,
+                    'installed' => true,
+                    'activated' => false,
+                    'message' => 'Plugin installed but activation failed: ' . $activated->get_error_message()
+                );
+            }
+        }
+
+        self::log_activity('plugin_install', 'Installed plugin: ' . $plugin_slug);
+
+        return array(
+            'success' => true,
+            'installed' => true,
+            'activated' => $activate,
+            'plugin_file' => $plugin_file,
+            'message' => 'Plugin installed successfully'
+        );
+    }
+
+    /**
+     * Install from CribOps repository
+     */
+    private function install_from_cribops_repo($plugin_slug, $activate = false) {
+        // Check if we have a CWPK_Installer class
+        if (class_exists('CWPK_Installer')) {
+            $installer = new CWPK_Installer();
+            $result = $installer->install_plugin($plugin_slug);
+
+            if ($result && $activate) {
+                $plugin_file = $this->get_plugin_file($plugin_slug);
+                if ($plugin_file) {
+                    activate_plugin($plugin_file);
+                }
+            }
+
+            return array(
+                'success' => $result,
+                'installed' => $result,
+                'activated' => $activate && $result,
+                'message' => $result ? 'Plugin installed from CribOps repository' : 'Installation failed'
+            );
+        }
+
+        return array('error' => 'CribOps installer not available');
+    }
+
+    /**
+     * Get plugin file from slug
+     */
+    private function get_plugin_file($plugin_slug) {
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        $all_plugins = get_plugins();
+
+        foreach ($all_plugins as $plugin_file => $plugin_data) {
+            if (strpos($plugin_file, $plugin_slug . '/') === 0) {
+                return $plugin_file;
+            }
+        }
+
+        // Try with .php extension
+        $possible_file = $plugin_slug . '/' . $plugin_slug . '.php';
+        if (isset($all_plugins[$possible_file])) {
+            return $possible_file;
+        }
+
+        return false;
+    }
+
+    /**
+     * Activate a plugin
+     */
+    private function activate_plugin($args) {
+        if (!isset($args['plugin_file'])) {
+            return array('error' => 'No plugin file provided');
+        }
+
+        $plugin_file = sanitize_text_field($args['plugin_file']);
+
+        if (!function_exists('activate_plugin')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        $result = activate_plugin($plugin_file);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Activation failed: ' . $result->get_error_message());
+        }
+
+        self::log_activity('plugin_activate', 'Activated plugin: ' . $plugin_file);
+
+        return array(
+            'success' => true,
+            'message' => 'Plugin activated successfully'
+        );
+    }
+
+    /**
+     * Deactivate a plugin
+     */
+    private function deactivate_plugin($args) {
+        if (!isset($args['plugin_file'])) {
+            return array('error' => 'No plugin file provided');
+        }
+
+        $plugin_file = sanitize_text_field($args['plugin_file']);
+
+        if (!function_exists('deactivate_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        deactivate_plugins($plugin_file);
+
+        self::log_activity('plugin_deactivate', 'Deactivated plugin: ' . $plugin_file);
+
+        return array(
+            'success' => true,
+            'message' => 'Plugin deactivated successfully'
+        );
+    }
+
+    /**
+     * Delete a plugin
+     */
+    private function delete_plugin($args) {
+        if (!isset($args['plugin_file'])) {
+            return array('error' => 'No plugin file provided');
+        }
+
+        $plugin_file = sanitize_text_field($args['plugin_file']);
+
+        if (!function_exists('delete_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        // Deactivate first if active
+        if (is_plugin_active($plugin_file)) {
+            deactivate_plugins($plugin_file);
+        }
+
+        $result = delete_plugins(array($plugin_file));
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Deletion failed: ' . $result->get_error_message());
+        }
+
+        self::log_activity('plugin_delete', 'Deleted plugin: ' . $plugin_file);
+
+        return array(
+            'success' => true,
+            'message' => 'Plugin deleted successfully'
+        );
+    }
+
+    /**
+     * Install a theme
+     */
+    private function install_theme($args) {
+        if (!isset($args['theme_slug'])) {
+            return array('error' => 'No theme slug provided');
+        }
+
+        $theme_slug = sanitize_text_field($args['theme_slug']);
+        $activate = isset($args['activate']) ? (bool)$args['activate'] : false;
+
+        if (!class_exists('Theme_Upgrader')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        }
+        if (!function_exists('themes_api')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+        if (!class_exists('WP_Ajax_Upgrader_Skin')) {
+            require_once ABSPATH . 'wp-admin/includes/class-wp-ajax-upgrader-skin.php';
+        }
+
+        // Try to install from WordPress.org
+        $api = themes_api('theme_information', array(
+            'slug' => $theme_slug,
+        ));
+
+        if (is_wp_error($api)) {
+            return array('error' => 'Theme not found: ' . $api->get_error_message());
+        }
+
+        $upgrader = new Theme_Upgrader(new WP_Ajax_Upgrader_Skin());
+        $result = $upgrader->install($api->download_link);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Installation failed: ' . $result->get_error_message());
+        }
+
+        if ($activate) {
+            switch_theme($theme_slug);
+        }
+
+        self::log_activity('theme_install', 'Installed theme: ' . $theme_slug);
+
+        return array(
+            'success' => true,
+            'installed' => true,
+            'activated' => $activate,
+            'message' => 'Theme installed successfully'
+        );
+    }
+
+    /**
+     * Activate a theme
+     */
+    private function activate_theme($args) {
+        if (!isset($args['theme_slug'])) {
+            return array('error' => 'No theme slug provided');
+        }
+
+        $theme_slug = sanitize_text_field($args['theme_slug']);
+
+        $theme = wp_get_theme($theme_slug);
+        if (!$theme->exists()) {
+            return array('error' => 'Theme not found');
+        }
+
+        switch_theme($theme_slug);
+
+        self::log_activity('theme_activate', 'Activated theme: ' . $theme_slug);
+
+        return array(
+            'success' => true,
+            'message' => 'Theme activated successfully'
+        );
+    }
+
+    /**
+     * Delete a theme
+     */
+    private function delete_theme($args) {
+        if (!isset($args['theme_slug'])) {
+            return array('error' => 'No theme slug provided');
+        }
+
+        $theme_slug = sanitize_text_field($args['theme_slug']);
+
+        if (!function_exists('delete_theme')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+
+        // Can't delete active theme
+        $active_theme = wp_get_theme();
+        if ($active_theme->get_stylesheet() === $theme_slug) {
+            return array('error' => 'Cannot delete active theme');
+        }
+
+        $result = delete_theme($theme_slug);
+
+        if (is_wp_error($result)) {
+            return array('error' => 'Deletion failed: ' . $result->get_error_message());
+        }
+
+        self::log_activity('theme_delete', 'Deleted theme: ' . $theme_slug);
+
+        return array(
+            'success' => true,
+            'message' => 'Theme deleted successfully'
+        );
+    }
+
+    /**
+     * Get detailed plugin information
+     */
+    private function get_plugin_details($args) {
+        if (!isset($args['plugin_file'])) {
+            return array('error' => 'No plugin file provided');
+        }
+
+        $plugin_file = sanitize_text_field($args['plugin_file']);
+
+        if (!function_exists('get_plugin_data')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        $plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
+
+        if (!file_exists($plugin_path)) {
+            return array('error' => 'Plugin file not found');
+        }
+
+        $plugin_data = get_plugin_data($plugin_path);
+        $active = is_plugin_active($plugin_file);
+
+        return array(
+            'details' => array(
+                'name' => $plugin_data['Name'],
+                'version' => $plugin_data['Version'],
+                'description' => $plugin_data['Description'],
+                'author' => $plugin_data['Author'],
+                'author_uri' => $plugin_data['AuthorURI'],
+                'plugin_uri' => $plugin_data['PluginURI'],
+                'active' => $active,
+                'network' => $plugin_data['Network'],
+                'requires_wp' => $plugin_data['RequiresWP'],
+                'requires_php' => $plugin_data['RequiresPHP']
+            )
+        );
     }
 }
 
