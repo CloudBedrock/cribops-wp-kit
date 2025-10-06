@@ -240,38 +240,118 @@ class CWPK_MainWP_Child {
 
     /**
      * Get available themes from CribOps repository
-     * Uses the child site's own CWPK_Theme_Manager to fetch data using its own credentials
      */
     private function get_available_themes() {
-        // Use the same theme manager that the child site uses
-        if (!class_exists('CWPK_Theme_Manager')) {
-            require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-cwpk-theme-manager.php';
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
+
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
         }
 
-        $theme_manager = new CWPK_Theme_Manager();
-        $themes = $theme_manager->get_theme_manifest();
-
-        if (is_wp_error($themes)) {
-            return array('error' => 'Failed to fetch themes: ' . $themes->get_error_message());
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            );
         }
 
-        // The theme manager already returns themes with installation status
-        return array('themes' => $themes);
+        $response = wp_remote_get($api_endpoint . 'themes', $headers);
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available themes: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $themes_data = json_decode($body, true);
+
+        if (empty($themes_data)) {
+            // Return empty array if no themes available
+            $themes_data = array();
+        }
+
+        // Get installed themes for comparison
+        if (!function_exists('wp_get_themes')) {
+            require_once ABSPATH . 'wp-admin/includes/theme.php';
+        }
+        $installed_themes = wp_get_themes();
+
+        // Format response with installation status
+        $available_themes = array();
+        foreach ($themes_data as $theme_slug => $theme_info) {
+            $installed = isset($installed_themes[$theme_slug]);
+            $active = (get_option('stylesheet') === $theme_slug);
+
+            $available_themes[] = array(
+                'slug' => $theme_slug,
+                'name' => isset($theme_info['name']) ? $theme_info['name'] : $theme_slug,
+                'version' => isset($theme_info['version']) ? $theme_info['version'] : 'latest',
+                'description' => isset($theme_info['description']) ? $theme_info['description'] : '',
+                'author' => isset($theme_info['author']) ? $theme_info['author'] : '',
+                'installed' => $installed,
+                'active' => $active
+            );
+        }
+
+        return array('themes' => $available_themes);
     }
 
     /**
      * Get available packages from CribOps repository
-     * Packages are stored in the user_data transient from the API login
      */
     private function get_available_packages() {
-        $user_data = get_transient('lk_user_data');
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
 
-        if (!$user_data || !isset($user_data['packages'])) {
-            return array('packages' => array());
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
         }
 
-        // Packages are already formatted in the user_data from API
-        return array('packages' => $user_data['packages']);
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            );
+        }
+
+        $response = wp_remote_get($api_endpoint . 'packages', $headers);
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available packages: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $packages_data = json_decode($body, true);
+
+        if (empty($packages_data)) {
+            // Return empty array if no packages available
+            $packages_data = array();
+        }
+
+        // Format response
+        $available_packages = array();
+        foreach ($packages_data as $package_id => $package_info) {
+            $available_packages[] = array(
+                'id' => $package_id,
+                'name' => isset($package_info['name']) ? $package_info['name'] : $package_id,
+                'description' => isset($package_info['description']) ? $package_info['description'] : '',
+                'size' => isset($package_info['size']) ? $package_info['size'] : 'Unknown',
+                'created' => isset($package_info['created']) ? $package_info['created'] : '',
+                'type' => isset($package_info['type']) ? $package_info['type'] : 'wprime'
+            );
+        }
+
+        return array('packages' => $available_packages);
     }
 
     /**
@@ -512,23 +592,99 @@ class CWPK_MainWP_Child {
 
     /**
      * Get available plugins from CribOps repository
-     * Uses the child site's own CWPK_Manifest_Installer to fetch data using its own credentials
      */
     private function get_available_plugins() {
-        // Use the same manifest installer that the child site uses
-        if (!class_exists('CWPK_Manifest_Installer')) {
-            require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-cwpk-manifest-installer.php';
+        // Use the actual configuration from CWPKConfig and CWPKAuth
+        $api_base = CWPKConfig::get_api_url();
+        $api_endpoint = $api_base . '/api/wp-kit/v1/';
+
+        // Get bearer token from environment/constants
+        $bearer_token = CWPKAuth::get_env_bearer_token();
+
+        // If no bearer token, check if we're using stored credentials
+        if (!$bearer_token) {
+            $bearer_token = get_option('cwpk_bearer_token', '');
         }
 
-        $manifest_installer = new CWPK_Manifest_Installer();
-        $plugins = $manifest_installer->get_plugin_manifest();
-
-        if (is_wp_error($plugins)) {
-            return array('error' => 'Failed to fetch plugins: ' . $plugins->get_error_message());
+        $headers = array('timeout' => 30);
+        if ($bearer_token) {
+            $headers['headers'] = array(
+                'Authorization' => 'Bearer ' . $bearer_token
+            );
         }
 
-        // The manifest installer already returns plugins with installation status
-        return array('plugins' => $plugins);
+        $response = wp_remote_get($api_endpoint . 'plugins', $headers);
+
+        if (is_wp_error($response)) {
+            return array('error' => 'Failed to fetch available plugins: ' . $response->get_error_message());
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $plugins_data = json_decode($body, true);
+
+        if (empty($plugins_data)) {
+            // Fallback to local manifest if API fails
+            $plugins_data = $this->get_local_plugin_manifest();
+        }
+
+        // Get installed plugins for comparison
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $installed_plugins = get_plugins();
+        $active_plugins = get_option('active_plugins', array());
+
+        // Format response with installation status
+        $available_plugins = array();
+        foreach ($plugins_data as $plugin_slug => $plugin_info) {
+            $installed = false;
+            $active = false;
+            $installed_version = '';
+
+            // Check if plugin is installed
+            foreach ($installed_plugins as $plugin_file => $plugin_data) {
+                if (strpos($plugin_file, $plugin_slug . '/') === 0) {
+                    $installed = true;
+                    $installed_version = $plugin_data['Version'];
+                    $active = in_array($plugin_file, $active_plugins);
+                    break;
+                }
+            }
+
+            $available_plugins[] = array(
+                'slug' => $plugin_slug,
+                'name' => isset($plugin_info['name']) ? $plugin_info['name'] : $plugin_slug,
+                'version' => isset($plugin_info['version']) ? $plugin_info['version'] : 'latest',
+                'description' => isset($plugin_info['description']) ? $plugin_info['description'] : '',
+                'installed' => $installed,
+                'active' => $active,
+                'installed_version' => $installed_version,
+                'update_available' => $installed && version_compare($installed_version, $plugin_info['version'], '<')
+            );
+        }
+
+        return array('plugins' => $available_plugins);
+    }
+
+    /**
+     * Get local plugin manifest fallback
+     */
+    private function get_local_plugin_manifest() {
+        // Define a basic manifest of commonly used plugins
+        return array(
+            'classic-editor' => array('name' => 'Classic Editor', 'version' => 'latest'),
+            'duplicate-post' => array('name' => 'Duplicate Post', 'version' => 'latest'),
+            'regenerate-thumbnails' => array('name' => 'Regenerate Thumbnails', 'version' => 'latest'),
+            'wp-mail-smtp' => array('name' => 'WP Mail SMTP', 'version' => 'latest'),
+            'wordfence' => array('name' => 'Wordfence Security', 'version' => 'latest'),
+            'limit-login-attempts-reloaded' => array('name' => 'Limit Login Attempts Reloaded', 'version' => 'latest'),
+            'wp-super-cache' => array('name' => 'WP Super Cache', 'version' => 'latest'),
+            'autoptimize' => array('name' => 'Autoptimize', 'version' => 'latest'),
+            'woocommerce' => array('name' => 'WooCommerce', 'version' => 'latest'),
+            'elementor' => array('name' => 'Elementor', 'version' => 'latest'),
+            'yoast-seo' => array('name' => 'Yoast SEO', 'version' => 'latest'),
+            'contact-form-7' => array('name' => 'Contact Form 7', 'version' => 'latest'),
+        );
     }
 
     /**
