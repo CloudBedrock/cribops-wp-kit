@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.2.4
+ * Version:     1.2.5
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -26,7 +26,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.2.4';
+        const VERSION = '1.2.5';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -341,28 +341,36 @@ if (!class_exists('CribOpsWPKit')) {
         </a>
       </div>
     <?php else : ?>
-      <form class="cwpk-login-inline" method="post"
-            action="<?php echo admin_url('admin-post.php'); ?>"
-            style="margin-left: 50px; display: flex; align-items: center; gap: 10px;">
-        <input type="hidden" name="action" value="cwpk_login">
+      <div style="margin-left: 50px; display: flex; flex-direction: column; gap: 8px;">
+        <form class="cwpk-login-inline" method="post"
+              action="<?php echo admin_url('admin-post.php'); ?>"
+              style="display: flex; align-items: center; gap: 10px;">
+          <input type="hidden" name="action" value="cwpk_login">
 
-        <label style="font-weight: 600; color: #333;">
-          <?php esc_html_e('Login:', 'cwpk'); ?>
-        </label>
+          <label style="font-weight: 600; color: #333;">
+            <?php esc_html_e('Login:', 'cwpk'); ?>
+          </label>
 
-        <input type="text"
-               name="cwpk_username"
-               placeholder="<?php esc_attr_e('Email', 'cwpk'); ?>"
-               style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 180px;">
+          <input type="text"
+                 name="cwpk_username"
+                 placeholder="<?php esc_attr_e('Email', 'cwpk'); ?>"
+                 style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 180px;">
 
-        <input type="password"
-               name="cwpk_password"
-               placeholder="<?php esc_attr_e('Password', 'cwpk'); ?>"
-               style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 140px;">
+          <input type="password"
+                 name="cwpk_password"
+                 placeholder="<?php esc_attr_e('Password', 'cwpk'); ?>"
+                 style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; min-width: 140px;">
 
-        <input type="submit" value="<?php esc_attr_e('Login', 'cwpk'); ?>"
-               style="padding: 6px 16px; background: #2271b1; color: white; border: none; border-radius: 4px; cursor: pointer;">
-      </form>
+          <input type="submit" value="<?php esc_attr_e('Login', 'cwpk'); ?>"
+                 style="padding: 6px 16px; background: #2271b1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        </form>
+        <div style="font-size: 12px; margin-left: 50px;">
+          <?php esc_html_e('Need an account?', 'cwpk'); ?>
+          <a href="https://cribops.com/pricing" target="_blank" style="color: #2271b1; text-decoration: none; font-weight: 600;">
+            <?php esc_html_e('Sign up here', 'cwpk'); ?>
+          </a>
+        </div>
+      </div>
     <?php endif; ?>
   </div>
 

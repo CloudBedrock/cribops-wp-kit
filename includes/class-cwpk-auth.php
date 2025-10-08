@@ -17,37 +17,28 @@ class CWPKAuth {
      * @return string|false Bearer token if available, false otherwise
      */
     public static function get_env_bearer_token() {
-        // Check multiple possible environment variable names
-        $possible_vars = [
-            'CWPK_BEARER_TOKEN',
-            'CRIBOPS_BEARER_TOKEN',
-            'WP_KIT_BEARER_TOKEN'
-        ];
+        $var = 'CWPK_BEARER_TOKEN';
 
-        foreach ($possible_vars as $var) {
-            // First check if it's defined as a PHP constant (from wp-config.php)
-            if (defined($var)) {
-                $token = constant($var);
-                if (!empty($token)) {
-                    return $token;
-                }
-            }
-
-            // Then check environment variables
-            $token = getenv($var);
+        // First check if it's defined as a PHP constant (from wp-config.php)
+        if (defined($var)) {
+            $token = constant($var);
             if (!empty($token)) {
                 return $token;
             }
+        }
+
+        // Then check environment variables
+        $token = getenv($var);
+        if (!empty($token)) {
+            return $token;
         }
 
         // Check if .env file exists in plugin directory
         $env_file = plugin_dir_path(dirname(__FILE__)) . '.env';
         if (file_exists($env_file)) {
             $env_contents = parse_ini_file($env_file, false, INI_SCANNER_RAW);
-            foreach ($possible_vars as $var) {
-                if (isset($env_contents[$var]) && !empty($env_contents[$var])) {
-                    return $env_contents[$var];
-                }
+            if (isset($env_contents[$var]) && !empty($env_contents[$var])) {
+                return $env_contents[$var];
             }
         }
 

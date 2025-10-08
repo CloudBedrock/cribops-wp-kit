@@ -39,13 +39,6 @@ Bearer token authentication allows users to configure their API token once via e
    - You should see "Authenticated via API Token" in green
    - No login required!
 
-### Alternative Configuration Methods
-
-You can use any of these environment variable names:
-- `CWPK_BEARER_TOKEN`
-- `CRIBOPS_BEARER_TOKEN`
-- `WP_KIT_BEARER_TOKEN`
-
 ### For Server Administrators
 
 Set the environment variable at the system level:
