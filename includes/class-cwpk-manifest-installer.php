@@ -263,8 +263,10 @@ class CWPK_Manifest_Installer {
 
                     if (!file_exists($target_dir)) {
                         wp_mkdir_p($target_dir);
-                        // Ensure proper permissions for web server
+                        // Ensure proper permissions and ownership for web server
                         @chmod($target_dir, 0755);
+                        @chown($target_dir, 'www-data');
+                        @chgrp($target_dir, 'www-data');
                     }
 
                     $file_path = $target_dir . '/' . $plugin_data['slug'] . '.zip';
@@ -298,8 +300,10 @@ class CWPK_Manifest_Installer {
 
         if (!file_exists($target_dir)) {
             wp_mkdir_p($target_dir);
-            // Ensure proper permissions for web server
+            // Ensure proper permissions and ownership for web server
             @chmod($target_dir, 0755);
+            @chown($target_dir, 'www-data');
+            @chgrp($target_dir, 'www-data');
         }
 
         $file_path = $target_dir . '/' . $plugin_slug . '.zip';

@@ -39,6 +39,9 @@ class CWPKInstaller {
 
         add_action('wp_ajax_install_plugin', array($this, 'install_plugin_callback'));
         add_action('wp_ajax_check_plugin_updates', array($this, 'check_plugin_updates_callback'));
+
+        // Auto-activate Prime Mover Pro license if available
+        add_action('admin_init', array($this, 'auto_activate_prime_mover_license'));
     }
 
     /**
@@ -1575,6 +1578,84 @@ class CWPKInstaller {
             echo '<li>No plugin updates available at this time</li>';
         }
         wp_die();
+    }
+
+    /**
+     * Auto-activate Prime Mover Pro license if env variable is set
+     *
+     * @since 1.3.2
+     */
+    public function auto_activate_prime_mover_license() {
+        // Get license key from environment
+        $license_key = defined('PRIME_MOVER_PLUGIN_LICENSE_KEY') ? PRIME_MOVER_PLUGIN_LICENSE_KEY : '';
+
+        if (empty($license_key)) {
+            return;
+        }
+
+        // Check if Prime Mover Pro is active
+        if (!function_exists('pm_fs')) {
+            return;
+        }
+
+        // Auto-fill the license key field on Prime Mover pages
+        add_action('admin_footer', function() use ($license_key) {
+            ?>
+            <script type="text/javascript">
+            (function($) {
+                if (typeof $ === 'undefined') return;
+
+                var licenseKey = <?php echo json_encode($license_key); ?>;
+
+                function tryFillLicense() {
+                    // Use multiple selectors to find the license input field
+                    var $input = $('input[placeholder*="license" i], input[aria-label*="license" i], textarea[placeholder*="license" i]').first();
+
+                    // Fallback: look for any input in the license activation form
+                    if (!$input.length) {
+                        $input = $('.fs-modal-license-activation input[type="text"]').first();
+                    }
+
+                    // Another fallback: find input near "Enter your license key" text
+                    if (!$input.length) {
+                        $input = $('label:contains("License key"), p:contains("license key")').closest('form, div').find('input[type="text"]').first();
+                    }
+
+                    if ($input.length && !$input.val()) {
+                        $input.val(licenseKey).trigger('change').trigger('input').trigger('keyup');
+
+                        // Try to enable the activate button
+                        var $btn = $('button[disabled]:contains("Activate License")');
+                        if ($btn.length) {
+                            $btn.prop('disabled', false).removeAttr('disabled').removeClass('disabled');
+                        }
+
+                        console.log('Prime Mover license auto-filled');
+                        return true;
+                    }
+                    return false;
+                }
+
+                // Try immediately on page load
+                $(document).ready(function() {
+                    setTimeout(tryFillLicense, 100);
+                    setTimeout(tryFillLicense, 500);
+                    setTimeout(tryFillLicense, 1000);
+                    setTimeout(tryFillLicense, 2000);
+                });
+
+                // Also watch for modal/dialog appearances
+                var observer = new MutationObserver(function(mutations) {
+                    tryFillLicense();
+                });
+
+                $(document).ready(function() {
+                    observer.observe(document.body, { childList: true, subtree: true });
+                });
+            })(jQuery);
+            </script>
+            <?php
+        });
     }
 }
 

@@ -4,7 +4,7 @@ Contributors: @1wdtv
 Tags: ecommerce, membership, marketing, sales-funnels, checkout
 Tested up to: 6.7.1
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 Description: Everything you need to Launch, Grow, Market & Monetize with WordPress
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -64,6 +64,12 @@ Instead of creating Frankenstein Monsters by purchasing and installing random pl
 
 
 ## Changelog
+
+10-10-2025  - version 1.3.2
+* Feature   - auto-fill Prime Mover Pro license key from PRIME_MOVER_PLUGIN_LICENSE_KEY constant
+* Feature   - add chown/chgrp after wp_mkdir_p to fix recurring permission issues
+* Tweak     - improved JavaScript selectors for license field detection
+* Tweak     - add MutationObserver to detect dynamically loaded license forms
 
 10-10-2025  - version 1.3.1
 * Fix       - resolved recurring directory permission issues in manifest installer
