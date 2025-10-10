@@ -39,6 +39,7 @@ class CWPKInstaller {
 
         add_action('wp_ajax_install_plugin', array($this, 'install_plugin_callback'));
         add_action('wp_ajax_check_plugin_updates', array($this, 'check_plugin_updates_callback'));
+        add_action('wp_ajax_refresh_packages', array($this, 'refresh_packages_callback'));
 
         // Auto-activate Prime Mover Pro license if available
         add_action('admin_init', array($this, 'auto_activate_prime_mover_license'));
@@ -225,6 +226,7 @@ class CWPKInstaller {
         <nav class="cwpk-installer-tabs">
             <a href="?page=cwpk&tab=installer&installer_tab=plugins" class="<?php echo $installer_tab === 'plugins' ? 'active' : ''; ?>">Plugins</a>
             <a href="?page=cwpk&tab=installer&installer_tab=themes" class="<?php echo $installer_tab === 'themes' ? 'active' : ''; ?>">Themes</a>
+            <a href="?page=cwpk&tab=installer&installer_tab=packages" class="<?php echo $installer_tab === 'packages' ? 'active' : ''; ?>">Packages</a>
         </nav>
 
         <?php
@@ -236,6 +238,9 @@ class CWPKInstaller {
             } else {
                 echo '<p>Theme manager not available. Please ensure the theme manager class is loaded.</p>';
             }
+        } elseif ($installer_tab === 'packages') {
+            // Display packages installer
+            $this->display_packages_tab();
         } else {
             // Display plugin updates & table
             $this->fetch_latest_launchkit_plugins();
@@ -1013,23 +1018,24 @@ class CWPKInstaller {
     }
 
     /**
-     * Packages page
+     * Display packages tab content (for use in installer tab)
      */
-    public function get_prime_page() {
+    public function display_packages_tab() {
         $user_data = get_transient('lk_user_data');
 
-        // Must have can_access_launchkit
-        if (!$user_data || empty($user_data['can_access_launchkit'])) {
+        // Check if Prime Mover or Prime Mover Pro is installed
+        $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php') || is_plugin_active('prime-mover-pro/prime-mover.php');
+
+        if (!$prime_mover_installed) {
             ?>
-            <div class="wrap">
-                <h1>CribOps WP-Kit Packages</h1>
-                <div class="notice notice-warning"><p>Sorry, please <a href="<?php echo admin_url('admin.php?page=cwpk&tab=installer'); ?>">log in with proper credentials</a> to view available packages.</p></div>
+            <div class="notice notice-warning">
+                <p><strong>Prime Mover Required</strong></p>
+                <p>To install packages, you need to have Prime Mover or Prime Mover Pro installed and activated.</p>
+                <p><a href="?page=cwpk&tab=installer&installer_tab=plugins" class="button">Go to Plugins Tab to Install Prime Mover</a></p>
             </div>
             <?php
             return;
         }
-
-        $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
 
         // Get packages array from API
         $packages = isset($user_data['packages']) && is_array($user_data['packages']) ? $user_data['packages'] : array();
@@ -1040,12 +1046,13 @@ class CWPKInstaller {
         }
 
         ?>
-        <div class="wrap">
-            <h1>Install CribOps WP-Kit Packages</h1>
-            <div id="launchkit_package_notice" style="display: none;"></div>
-            <?php if ($prime_mover_installed) : ?>
-                <a class="button" href="<?php echo admin_url('admin.php?page=migration-panel-backup-menu'); ?>">View Your Installed Packages</a>
-            <?php endif; ?>
+        <div id="launchkit_package_notice" style="display: none;"></div>
+        <div style="margin-bottom: 15px;">
+            <a class="button" href="<?php echo admin_url('admin.php?page=migration-panel-backup-menu'); ?>">View Your Installed Packages</a>
+            <button type="button" id="cwpk-refresh-packages" class="button" style="margin-left: 10px;">
+                <span class="dashicons dashicons-update" style="margin-top: 3px;"></span> Refresh Package List
+            </button>
+        </div>
 
             <!-- Progress Modal -->
             <div id="cwpk-progress-modal" style="display: none;">
@@ -1262,9 +1269,41 @@ class CWPKInstaller {
                     }, 3000);
                 });
             });
+
+            // Refresh packages button
+            $('#cwpk-refresh-packages').click(function(e) {
+                e.preventDefault();
+                var button = $(this);
+                var originalHtml = button.html();
+
+                button.prop('disabled', true).html('<span class="dashicons dashicons-update spin-icon" style="margin-top: 3px;"></span> Refreshing...');
+
+                $.post(ajaxurl, {
+                    action: 'refresh_packages',
+                    security: '<?php echo wp_create_nonce("refresh_packages_nonce"); ?>'
+                }, function(response) {
+                    if (response.success) {
+                        location.reload();
+                    } else {
+                        alert('Failed to refresh packages: ' + (response.data || 'Unknown error'));
+                        button.prop('disabled', false).html(originalHtml);
+                    }
+                }).fail(function() {
+                    alert('Failed to refresh packages');
+                    button.prop('disabled', false).html(originalHtml);
+                });
+            });
         });
         </script>
         <style>
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .spin-icon {
+                animation: spin 1s linear infinite;
+                display: inline-block;
+            }
             .package-selection-row {
                 display: flex;
                 justify-content: left;
@@ -1372,6 +1411,31 @@ class CWPKInstaller {
                 font-style: italic;
             }
         </style>
+        <?php
+    }
+
+    /**
+     * Packages page (standalone - wraps display_packages_tab)
+     */
+    public function get_prime_page() {
+        $user_data = get_transient('lk_user_data');
+
+        // Must have can_access_launchkit
+        if (!$user_data || empty($user_data['can_access_launchkit'])) {
+            ?>
+            <div class="wrap">
+                <h1>CribOps WP-Kit Packages</h1>
+                <div class="notice notice-warning"><p>Sorry, please <a href="<?php echo admin_url('admin.php?page=cwpk&tab=installer'); ?>">log in with proper credentials</a> to view available packages.</p></div>
+            </div>
+            <?php
+            return;
+        }
+
+        ?>
+        <div class="wrap">
+            <h1>Install CribOps WP-Kit Packages</h1>
+            <?php $this->display_packages_tab(); ?>
+        </div>
         <?php
     }
 
@@ -1578,6 +1642,32 @@ class CWPKInstaller {
             echo '<li>No plugin updates available at this time</li>';
         }
         wp_die();
+    }
+
+    /**
+     * AJAX: refresh_packages - Force refresh package list from API
+     */
+    public function refresh_packages_callback() {
+        check_ajax_referer('refresh_packages_nonce', 'security');
+
+        // Delete the cached user data to force a refresh
+        delete_transient('lk_user_data');
+        delete_transient('cwpk_token_auth');
+
+        // Re-authenticate to get fresh data
+        $token = CWPKAuth::get_env_bearer_token();
+        if ($token) {
+            $result = CWPKAuth::authenticate_with_token($token);
+            if (!is_wp_error($result)) {
+                set_transient('cwpk_token_auth', true, HOUR_IN_SECONDS);
+                set_transient('lk_user_data', $result, HOUR_IN_SECONDS);
+                wp_send_json_success(['message' => 'Packages refreshed successfully']);
+            } else {
+                wp_send_json_error('Failed to authenticate: ' . $result->get_error_message());
+            }
+        } else {
+            wp_send_json_error('No authentication token available');
+        }
     }
 
     /**
