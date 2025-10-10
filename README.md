@@ -243,6 +243,14 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.5.0 (2025-10-10)
+- Added Development Tools admin page for managing development services
+- Integrated MailPit email testing support with status monitoring
+- Integrated ngrok tunneling support with URL retrieval
+- Added AJAX API for getting ngrok URLs and SMTP configuration
+- Provides instructions for configuring SMTP plugins
+- Compatible with cribops-wp Docker environment development tools
+
 ### Version 1.4.1 (2025-10-10)
 - Added automatic license activation for Automatic.css plugin
 - Reads `AUTOMATIC_CSS_LICENSE_KEY` constant from wp-config.php
