@@ -1390,6 +1390,11 @@ class CWPKInstaller {
         $upload_file = $upload_dir . basename(parse_url($package_url, PHP_URL_PATH));
         $download_key = 'cwpk_download_' . md5($package_url);
 
+        // Remove existing file if it exists to avoid conflicts
+        if (file_exists($upload_file)) {
+            @unlink($upload_file);
+        }
+
         // Set unlimited execution time for large downloads
         set_time_limit(0);
         @ini_set('max_execution_time', 0);

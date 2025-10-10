@@ -263,6 +263,8 @@ class CWPK_Manifest_Installer {
 
                     if (!file_exists($target_dir)) {
                         wp_mkdir_p($target_dir);
+                        // Ensure proper permissions for web server
+                        @chmod($target_dir, 0755);
                     }
 
                     $file_path = $target_dir . '/' . $plugin_data['slug'] . '.zip';
@@ -296,6 +298,8 @@ class CWPK_Manifest_Installer {
 
         if (!file_exists($target_dir)) {
             wp_mkdir_p($target_dir);
+            // Ensure proper permissions for web server
+            @chmod($target_dir, 0755);
         }
 
         $file_path = $target_dir . '/' . $plugin_slug . '.zip';
@@ -358,6 +362,11 @@ class CWPK_Manifest_Installer {
             $file_path = $target_dir . '/' . $actual_slug . '.zip';
         }
 
+        // Remove existing file if it exists
+        if (file_exists($file_path)) {
+            @unlink($file_path);
+        }
+
         // Move to target directory
         if (rename($tmp_file, $file_path)) {
             return array(
@@ -368,8 +377,19 @@ class CWPK_Manifest_Installer {
             );
         }
 
+        // If rename fails, try copy + delete as fallback
+        if (copy($tmp_file, $file_path)) {
+            @unlink($tmp_file);
+            return array(
+                'success' => true,
+                'file' => $file_path,
+                'actual_slug' => $actual_slug,
+                'mismatch' => ($actual_slug && $actual_slug !== $plugin_slug)
+            );
+        }
+
         @unlink($tmp_file);
-        return new WP_Error('move_failed', 'Failed to move downloaded file');
+        return new WP_Error('move_failed', 'Failed to move downloaded file from ' . $tmp_file . ' to ' . $file_path);
     }
 
     /**
