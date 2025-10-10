@@ -43,6 +43,9 @@ class CWPKInstaller {
 
         // Auto-activate Prime Mover Pro license if available
         add_action('admin_init', array($this, 'auto_activate_prime_mover_license'));
+
+        // Auto-activate Automatic.css license if available
+        add_action('admin_init', array($this, 'auto_activate_automatic_css_license'));
     }
 
     /**
@@ -1735,6 +1738,107 @@ class CWPKInstaller {
                 });
 
                 // Also watch for modal/dialog appearances
+                var observer = new MutationObserver(function(mutations) {
+                    tryFillLicense();
+                });
+
+                $(document).ready(function() {
+                    observer.observe(document.body, { childList: true, subtree: true });
+                });
+            })(jQuery);
+            </script>
+            <?php
+        });
+    }
+
+    /**
+     * Auto-activate Automatic.css license if env variable is set
+     *
+     * @since 1.4.0
+     */
+    public function auto_activate_automatic_css_license() {
+        // Get license key from environment
+        $license_key = defined('AUTOMATIC_CSS_LICENSE_KEY') ? AUTOMATIC_CSS_LICENSE_KEY : '';
+
+        if (empty($license_key)) {
+            return;
+        }
+
+        // Check if Automatic.css plugin is active
+        if (!is_plugin_active('automaticcss-plugin/automaticcss-plugin.php')) {
+            return;
+        }
+
+        // Check if license is already activated
+        $current_license = get_option('automatic_css_license_key');
+        $license_status = get_option('automatic_css_license_status');
+
+        // If license is already set and valid, don't reactivate
+        if ($current_license === $license_key && $license_status === 'valid') {
+            return;
+        }
+
+        // Store the license key
+        update_option('automatic_css_license_key', $license_key);
+
+        // Activate the license via EDD API
+        $api_params = array(
+            'edd_action'  => 'activate_license',
+            'license'     => $license_key,
+            'item_id'     => 164, // Automatic.css product ID
+            'item_name'   => rawurlencode('Automatic.css'),
+            'url'         => site_url(),
+            'environment' => function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production',
+        );
+
+        // Call the Automatic.css licensing API
+        $response = wp_remote_post(
+            'https://automaticcss.com/',
+            array(
+                'timeout'   => 15,
+                'sslverify' => true,
+                'body'      => $api_params,
+            )
+        );
+
+        if (!is_wp_error($response)) {
+            $body = wp_remote_retrieve_body($response);
+            $license_data = json_decode($body);
+
+            if (isset($license_data->license)) {
+                update_option('automatic_css_license_status', $license_data->license);
+            }
+        }
+
+        // Also auto-fill the license key field on Automatic.css pages using JavaScript
+        add_action('admin_footer', function() use ($license_key) {
+            ?>
+            <script type="text/javascript">
+            (function($) {
+                if (typeof $ === 'undefined') return;
+
+                var licenseKey = <?php echo json_encode($license_key); ?>;
+
+                function tryFillLicense() {
+                    // Look for the Automatic.css license input field
+                    var $input = $('input[name="automatic_css_license_key"]');
+
+                    if ($input.length && !$input.val()) {
+                        $input.val(licenseKey).trigger('change').trigger('input').trigger('keyup');
+                        console.log('Automatic.css license auto-filled');
+                        return true;
+                    }
+                    return false;
+                }
+
+                // Try immediately on page load
+                $(document).ready(function() {
+                    setTimeout(tryFillLicense, 100);
+                    setTimeout(tryFillLicense, 500);
+                    setTimeout(tryFillLicense, 1000);
+                });
+
+                // Also watch for dynamic content loading
                 var observer = new MutationObserver(function(mutations) {
                     tryFillLicense();
                 });

@@ -243,6 +243,13 @@ GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
 
+### Version 1.4.1 (2025-10-10)
+- Added automatic license activation for Automatic.css plugin
+- Reads `AUTOMATIC_CSS_LICENSE_KEY` constant from wp-config.php
+- Auto-fills license key and activates via EDD API
+- Similar implementation to Prime Mover Pro auto-activation
+- License status stored in WordPress options table
+
 ### Version 1.3.0 (2025-10-10)
 - Fixed package download corruption from malformed AWS presigned URLs
 - Changed URL sanitization from `sanitize_text_field()` to `esc_url_raw()` to preserve URL encoding
