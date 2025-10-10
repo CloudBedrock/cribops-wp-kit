@@ -168,6 +168,52 @@ define('CWPK_API_TIMEOUT', 60);
 - WooCommerce extensions
 - And more...
 
+## Creating Prime Mover Packages
+
+### Package Compatibility Requirements
+
+**Important:** For best compatibility with all users, create packages **without media encryption**.
+
+#### Why Disable Media Encryption?
+
+Prime Mover's media encryption feature:
+- ✅ **Pros:** Enhanced security for sensitive/private content
+- ❌ **Cons:** Requires Prime Mover **Pro** version to restore
+- ❌ **Cons:** Creates larger file sizes
+- ❌ **Cons:** Slower backup/restore process
+
+#### When to Use Encryption
+
+**Use encryption** if your packages contain:
+- Client-specific sensitive data
+- Personal user information (GDPR compliance)
+- Proprietary business content
+- Private user-uploaded media
+
+**Don't use encryption** for:
+- Demo/template sites
+- Public content packages
+- Software bundle distributions
+- General theme/plugin showcases
+
+#### How to Create Compatible Packages
+
+1. Go to **Prime Mover → Backup**
+2. When creating the backup:
+   - ✅ **Uncheck** "Encrypt media files" option
+   - This ensures compatibility with Prime Mover **free** version
+3. Upload the `.wprime` package to your repository
+
+### Package Image Thumbnails
+
+Recommended thumbnail specifications:
+- **Size:** 300x200 pixels (3:2 aspect ratio)
+- **Format:** JPG or PNG
+- **Alternative sizes:**
+  - 300x169 (16:9 widescreen)
+  - 400x267 (3:2 high-DPI/retina)
+- **Fallback:** If no thumbnail provided, uses `https://placehold.co/300x200`
+
 ## API Backend Setup
 
 ### Database Tables
@@ -196,6 +242,20 @@ CDN_URL=https://cdn.example.com
 GPL v2 or later - See LICENSE.txt for full license text.
 
 ## Changelog
+
+### Version 1.3.0 (2025-10-10)
+- Fixed package download corruption from malformed AWS presigned URLs
+- Changed URL sanitization from `sanitize_text_field()` to `esc_url_raw()` to preserve URL encoding
+- Added real-time download progress tracking with visual progress bar
+- Implemented cURL-based downloads with streaming for large files (600+ MB)
+- Added progress modal with percentage, file size, and status updates
+- Progress updates every 2 seconds during download
+- Set unlimited PHP execution time for large package downloads
+- Fixed PHP 8.3 compatibility for cURL progress callback function signature
+- Updated placeholder image service to `https://placehold.co/300x200`
+- Added comprehensive documentation for creating Prime Mover packages
+- Documented media encryption requirements (Pro vs Free version)
+- Added package image thumbnail specifications (300x200px recommended)
 
 ### Version 1.0.53 (2025-10-05)
 - Fixed plugin installation status detection on fresh WordPress installs

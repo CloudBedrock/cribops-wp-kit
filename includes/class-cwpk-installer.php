@@ -27,6 +27,7 @@ class CWPKInstaller {
         add_action('wp_ajax_install_prime_mover', array($this, 'install_prime_mover_callback'));
         add_action('in_admin_header', array($this, 'launchkit_banner_on_prime_mover_backup_menu'));
         add_action('wp_ajax_upload_package_from_url', array($this, 'upload_package_from_url_callback'));
+        add_action('wp_ajax_check_package_download_progress', array($this, 'check_package_download_progress_callback'));
         add_action('wp_ajax_get_prime_package', array($this, 'get_prime_package_callback'));
         add_action('admin_menu', array($this, 'get_prime_submenu'));
 
@@ -1043,6 +1044,22 @@ class CWPKInstaller {
                 <a class="button" href="<?php echo admin_url('admin.php?page=migration-panel-backup-menu'); ?>">View Your Installed Packages</a>
             <?php endif; ?>
 
+            <!-- Progress Modal -->
+            <div id="cwpk-progress-modal" style="display: none;">
+                <div class="cwpk-progress-overlay"></div>
+                <div class="cwpk-progress-content">
+                    <h2>Downloading Package</h2>
+                    <div class="cwpk-progress-bar-container">
+                        <div id="cwpk-progress-bar-fill" class="cwpk-progress-bar-fill"></div>
+                        <div class="cwpk-progress-bar-text">
+                            <span id="cwpk-progress-percent">0%</span>
+                        </div>
+                    </div>
+                    <div id="cwpk-progress-details" class="cwpk-progress-details">Initializing...</div>
+                    <div id="cwpk-progress-message" class="cwpk-progress-message">Starting download...</div>
+                </div>
+            </div>
+
             <!-- Package Selection -->
             <h3>Select Package</h3>
             <?php if (!empty($packages)) : ?>
@@ -1063,11 +1080,11 @@ class CWPKInstaller {
                         $package_url = isset($package['url']) ? $package['url'] : '';
 
                         // Check for thumbnail_url and provide fallback
-                        if (isset($package['thumbnail_url']) && !empty($package['thumbnail_url'])) {
+                        if (!empty($package['thumbnail_url']) && $package['thumbnail_url'] !== null) {
                             $thumbnail_url = $package['thumbnail_url'];
                         } else {
                             // Use placeholder image with package name
-                            $thumbnail_url = 'https://via.placeholder.com/300x200/0073aa/ffffff?text=' . urlencode($package_name);
+                            $thumbnail_url = 'https://placehold.co/300x200/2271b1/ffffff?text=' . urlencode($package_name);
                         }
 
                         // Debug output for each package
@@ -1080,7 +1097,7 @@ class CWPKInstaller {
                             <img src="<?php echo esc_url($thumbnail_url); ?>"
                                  alt="<?php echo esc_attr($package_name); ?>"
                                  class="package-image"
-                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200/cccccc/666666?text=<?php echo urlencode($package_name); ?>';"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/300x200/2271b1/ffffff?text=<?php echo urlencode($package_name); ?>';"
                                  title="Image URL: <?php echo esc_attr($thumbnail_url); ?>">
                         </div>
                         <button class="button upload-package-button" data-package-url="<?php echo esc_url($package_url); ?>">Upload <?php echo esc_html($package_name); ?></button>
@@ -1103,6 +1120,9 @@ class CWPKInstaller {
 
         <script type="text/javascript">
         jQuery(document).ready(function($) {
+            var progressInterval = null;
+            var currentPackageUrl = null;
+
             // Package search functionality
             $('#cwpk-package-search').on('keyup search', function() {
                 var searchTerm = $(this).val().toLowerCase();
@@ -1140,6 +1160,62 @@ class CWPKInstaller {
                 }
             });
 
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                var k = 1024;
+                var sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                var i = Math.floor(Math.log(bytes) / Math.log(k));
+                return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+            }
+
+            function checkDownloadProgress() {
+                if (!currentPackageUrl) return;
+
+                $.post(ajaxurl, {
+                    action: 'check_package_download_progress',
+                    package_url: currentPackageUrl,
+                    security: '<?php echo wp_create_nonce("check_download_progress_nonce"); ?>'
+                }, function(response) {
+                    if (!response.success) return;
+
+                    var status = response.data;
+                    var progressPercent = status.progress || 0;
+                    var downloaded = status.downloaded || 0;
+                    var total = status.total || 0;
+
+                    $('#cwpk-progress-bar-fill').css('width', progressPercent + '%');
+                    $('#cwpk-progress-percent').text(progressPercent.toFixed(1) + '%');
+
+                    if (total > 0) {
+                        $('#cwpk-progress-details').text(formatBytes(downloaded) + ' / ' + formatBytes(total));
+                    } else if (downloaded > 0) {
+                        $('#cwpk-progress-details').text(formatBytes(downloaded) + ' downloaded');
+                    } else {
+                        $('#cwpk-progress-details').text('Starting download...');
+                    }
+
+                    if (status.status === 'completed') {
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        $('#cwpk-progress-message').html('<span style="color: #46b450;">✓ Package downloaded successfully!</span>');
+                        setTimeout(function() {
+                            $('#cwpk-progress-modal').fadeOut();
+                            $('#launchkit_package_notice').html('<div class="notice notice-success"><p>Package uploaded successfully. <a href="<?php echo admin_url('admin.php?page=migration-panel-backup-menu'); ?>">View in Prime Mover</a></p></div>').show();
+                            $('.upload-package-button').prop('disabled', false).text('Upload Package');
+                        }, 2000);
+                    } else if (status.status === 'failed') {
+                        clearInterval(progressInterval);
+                        progressInterval = null;
+                        $('#cwpk-progress-message').html('<span style="color: #dc3232;">✗ ' + status.message + '</span>');
+                        setTimeout(function() {
+                            $('#cwpk-progress-modal').fadeOut();
+                            $('#launchkit_package_notice').html('<div class="notice notice-error"><p>' + status.message + '</p></div>').show();
+                            $('.upload-package-button').prop('disabled', false).text('Upload Package');
+                        }, 3000);
+                    }
+                });
+            }
+
             $('.upload-package-button').click(function(e) {
                 e.preventDefault();
                 var button = $(this);
@@ -1151,23 +1227,36 @@ class CWPKInstaller {
                         return;
                     }
                 }
-                button.prop('disabled', true).text('Uploading...');
 
+                currentPackageUrl = packageUrl;
+                button.prop('disabled', true).text('Starting...');
+
+                // Show progress modal
+                $('#cwpk-progress-modal').fadeIn();
+                $('#cwpk-progress-bar-fill').css('width', '0%');
+                $('#cwpk-progress-percent').text('0%');
+                $('#cwpk-progress-details').text('Initializing...');
+                $('#cwpk-progress-message').html('Downloading package...');
+
+                // Start progress polling
+                progressInterval = setInterval(checkDownloadProgress, 2000);
+
+                // Start the download
                 $.post(ajaxurl, {
                     action: 'upload_package_from_url',
                     package_url: packageUrl,
                     security: '<?php echo wp_create_nonce("upload_package_from_url_nonce"); ?>'
                 }, function(response) {
-                    if (response.success) {
-                        button.prop('disabled', false).text('Uploaded');
-                        $('#launchkit_package_notice').html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>').show();
-                    } else {
-                        button.prop('disabled', false).text('Upload');
-                        $('#launchkit_package_notice').html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>').show();
-                    }
+                    // Download completed or failed - progress polling will handle UI updates
                 }).fail(function(xhr, status, error) {
-                    button.prop('disabled', false).text('Upload');
-                    $('#launchkit_package_notice').html('<div class="notice notice-error"><p>An error occurred while uploading the package: ' + error + '</p></div>').show();
+                    clearInterval(progressInterval);
+                    progressInterval = null;
+                    $('#cwpk-progress-message').html('<span style="color: #dc3232;">✗ Request failed: ' + error + '</span>');
+                    setTimeout(function() {
+                        $('#cwpk-progress-modal').fadeOut();
+                        $('#launchkit_package_notice').html('<div class="notice notice-error"><p>Request failed: ' + error + '</p></div>').show();
+                        button.prop('disabled', false).text('Upload Package');
+                    }, 3000);
                 });
             });
         });
@@ -1201,6 +1290,84 @@ class CWPKInstaller {
             .button.upload-package-button {
                 margin-top:0px;
             }
+
+            /* Progress Modal Styles */
+            #cwpk-progress-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 100000;
+            }
+            .cwpk-progress-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+            }
+            .cwpk-progress-content {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #fff;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                min-width: 500px;
+                max-width: 600px;
+            }
+            .cwpk-progress-content h2 {
+                margin: 0 0 20px 0;
+                font-size: 22px;
+                color: #23282d;
+            }
+            .cwpk-progress-bar-container {
+                position: relative;
+                width: 100%;
+                height: 30px;
+                background: #e5e5e5;
+                border-radius: 15px;
+                overflow: hidden;
+                margin-bottom: 15px;
+            }
+            .cwpk-progress-bar-fill {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                background: linear-gradient(90deg, #2271b1 0%, #135e96 100%);
+                transition: width 0.3s ease;
+                border-radius: 15px;
+            }
+            .cwpk-progress-bar-text {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 600;
+                color: #23282d;
+                font-size: 14px;
+            }
+            .cwpk-progress-details {
+                text-align: center;
+                color: #50575e;
+                font-size: 14px;
+                margin-bottom: 10px;
+            }
+            .cwpk-progress-message {
+                text-align: center;
+                color: #50575e;
+                font-size: 13px;
+                font-style: italic;
+            }
         </style>
         <?php
     }
@@ -1211,24 +1378,130 @@ class CWPKInstaller {
     public function upload_package_from_url_callback() {
         check_ajax_referer('upload_package_from_url_nonce', 'security');
 
-        $package_url = isset($_POST['package_url']) ? sanitize_text_field($_POST['package_url']) : '';
+        $package_url = isset($_POST['package_url']) ? esc_url_raw($_POST['package_url']) : '';
         if (empty($package_url)) {
             wp_send_json_error(['message' => 'No package URL provided.']);
         }
 
         $upload_dir  = ABSPATH . 'wp-content/uploads/prime-mover-export-files/1/';
+        if (!file_exists($upload_dir)) {
+            wp_mkdir_p($upload_dir);
+        }
         $upload_file = $upload_dir . basename(parse_url($package_url, PHP_URL_PATH));
+        $download_key = 'cwpk_download_' . md5($package_url);
 
-        $response = wp_remote_get($package_url);
-        if (is_wp_error($response)) {
-            wp_send_json_error(['message' => 'Error downloading file: ' . $response->get_error_message()]);
+        // Set unlimited execution time for large downloads
+        set_time_limit(0);
+        @ini_set('max_execution_time', 0);
+
+        // Initialize download status
+        set_transient($download_key, array(
+            'status' => 'downloading',
+            'progress' => 0,
+            'downloaded' => 0,
+            'total' => 0,
+            'message' => 'Starting download...',
+            'start_time' => time()
+        ), 3600);
+
+        // Download with progress tracking using cURL for better control
+        $ch = curl_init($package_url);
+        $fp = fopen($upload_file, 'w+');
+
+        if ($fp === false) {
+            set_transient($download_key, array(
+                'status' => 'failed',
+                'message' => 'Could not open file for writing'
+            ), 300);
+            wp_send_json_error(['message' => 'Could not open file for writing']);
         }
 
-        $file_contents = wp_remote_retrieve_body($response);
-        if (file_put_contents($upload_file, $file_contents)) {
-            wp_send_json_success(['message' => 'Package uploaded successfully.']);
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 0);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+
+        // Progress callback (PHP 5.5+ signature)
+        $start_time = time();
+        $last_update = 0;
+        curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function($ch, $download_size, $downloaded, $upload_size, $uploaded) use ($download_key, $start_time, &$last_update) {
+            // Only update transient every 2 seconds to avoid overhead
+            $now = time();
+            if ($now - $last_update >= 2 || $downloaded === $download_size) {
+                $progress = $download_size > 0 ? round(($downloaded / $download_size) * 100, 1) : 0;
+                set_transient($download_key, array(
+                    'status' => 'downloading',
+                    'progress' => $progress,
+                    'downloaded' => $downloaded,
+                    'total' => $download_size,
+                    'message' => 'Downloading...',
+                    'start_time' => $start_time
+                ), 3600);
+                $last_update = $now;
+            }
+        });
+
+        $result = curl_exec($ch);
+        $curl_error = curl_error($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        curl_close($ch);
+        fclose($fp);
+
+        if ($result === false || $http_code !== 200) {
+            @unlink($upload_file);
+            set_transient($download_key, array(
+                'status' => 'failed',
+                'message' => 'Download failed: ' . ($curl_error ?: 'HTTP ' . $http_code)
+            ), 300);
+            wp_send_json_error(['message' => 'Download failed: ' . ($curl_error ?: 'HTTP ' . $http_code)]);
+        }
+
+        // Verify file exists and has content
+        if (!file_exists($upload_file) || filesize($upload_file) === 0) {
+            set_transient($download_key, array(
+                'status' => 'failed',
+                'message' => 'Downloaded file is empty or missing'
+            ), 300);
+            wp_send_json_error(['message' => 'Downloaded file is empty or missing']);
+        }
+
+        // Success!
+        set_transient($download_key, array(
+            'status' => 'completed',
+            'progress' => 100,
+            'downloaded' => filesize($upload_file),
+            'total' => filesize($upload_file),
+            'message' => 'Package uploaded successfully',
+            'file' => basename($upload_file)
+        ), 300);
+
+        wp_send_json_success(['message' => 'Package uploaded successfully.']);
+    }
+
+    /**
+     * AJAX: check_package_download_progress
+     */
+    public function check_package_download_progress_callback() {
+        check_ajax_referer('check_download_progress_nonce', 'security');
+
+        $package_url = isset($_POST['package_url']) ? esc_url_raw($_POST['package_url']) : '';
+        if (empty($package_url)) {
+            wp_send_json_error(['message' => 'No package URL provided.']);
+        }
+
+        $download_key = 'cwpk_download_' . md5($package_url);
+        $status = get_transient($download_key);
+
+        if ($status === false) {
+            wp_send_json_success([
+                'status' => 'not_started',
+                'progress' => 0,
+                'message' => 'Download not started'
+            ]);
         } else {
-            wp_send_json_error(['message' => 'Error saving file to directory.']);
+            wp_send_json_success($status);
         }
     }
 
@@ -1244,12 +1517,18 @@ class CWPKInstaller {
                 wp_mkdir_p($local_dir);
             }
             $local_file_path = $local_dir . basename($remote_file_url);
-            $response        = wp_remote_get($remote_file_url);
+            // Use extended timeout for large package files (up to 10 minutes)
+            // Stream directly to file to avoid memory issues with large packages
+            $response        = wp_remote_get($remote_file_url, array(
+                'timeout' => 600,
+                'stream' => true,
+                'filename' => $local_file_path
+            ));
             if (is_wp_error($response)) {
                 return ['success' => false, 'message' => 'Error downloading file: ' . $response->get_error_message()];
             }
-            $file_contents = wp_remote_retrieve_body($response);
-            if (file_put_contents($local_file_path, $file_contents)) {
+            // When streaming, the file is already written to disk
+            if (file_exists($local_file_path) && filesize($local_file_path) > 0) {
                 return ['success' => true, 'message' => 'File successfully downloaded to ' . $local_file_path];
             } else {
                 return ['success' => false, 'message' => 'Error saving file to directory.'];
