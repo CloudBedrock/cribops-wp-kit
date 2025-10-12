@@ -78,6 +78,12 @@ class CWPKAuth {
         $response_body = wp_remote_retrieve_body($response);
         $data = json_decode($response_body, true);
 
+        // Handle site limit exceeded (403)
+        if ($response_code === 403 && !empty($data['error']) && $data['error'] === 'site_limit_exceeded') {
+            $message = !empty($data['message']) ? $data['message'] : 'Site limit exceeded. Please upgrade your plan or deactivate a site.';
+            return new WP_Error('site_limit_exceeded', $message);
+        }
+
         if ($response_code === 200 && !empty($data)) {
             return $data;
         }
