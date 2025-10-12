@@ -145,15 +145,22 @@ class CWPKInstaller {
 
         // If not logged in
         if (! $is_authenticated) {
-            echo '<p>Unlock All Features By Subscribing To <a href="https://cribops.com/pricing" target="_blank">CribOps WP-Kit Software Bundle</a></p>';
-
-            // Check if bearer token is configured but invalid
+            // Check if authentication failed due to site limit
             $token = CWPKAuth::get_env_bearer_token();
             if ($token) {
+                $result = CWPKAuth::authenticate_with_token($token);
+                if (is_wp_error($result) && $result->get_error_code() === 'site_limit_exceeded') {
+                    echo '<div class="notice notice-error"><p>';
+                    echo '<strong>Site Limit Exceeded:</strong> ' . esc_html($result->get_error_message());
+                    echo '</p><p><a href="https://cribops.com/pricing" target="_blank" class="button button-primary">Upgrade Your Plan</a> to add more sites.</p></div>';
+                    return;
+                }
                 echo '<div class="cwpk-notice" style="background: #fff3cd; border-left-color: #ffc107;"><p>Bearer token found but authentication failed. Please check your token configuration or use username/password login.</p></div>';
             } else {
                 echo '<div class="cwpk-notice"><p>You are logged-out. Please log in via the header using your CribOps username and password.</p></div>';
             }
+
+            echo '<p>Unlock All Features By Subscribing To <a href="https://cribops.com/pricing" target="_blank">CribOps WP-Kit Software Bundle</a></p>';
             echo '</div>'; // .wrap
             return;
         }
@@ -185,6 +192,11 @@ class CWPKInstaller {
             echo '<p>You are logged in with Software Bundle access.</p>';
         }
         // For token auth without a name, no greeting needed since the green badge shows auth status
+
+        // Display site usage information
+        if (!empty($user_data['site_usage'])) {
+            $this->display_site_usage_notice($user_data['site_usage']);
+        }
 
         // Check if Prime Mover plugin is installed
         $prime_mover_installed = is_plugin_active('prime-mover/prime-mover.php');
@@ -1850,6 +1862,53 @@ class CWPKInstaller {
             </script>
             <?php
         });
+    }
+
+    /**
+     * Display site usage notice based on current usage
+     *
+     * @param array $site_usage Site usage data from API
+     */
+    private function display_site_usage_notice($site_usage) {
+        // Validate site_usage structure
+        if (!is_array($site_usage) ||
+            !isset($site_usage['current_sites']) ||
+            !isset($site_usage['site_limit'])) {
+            return; // Invalid structure - skip display
+        }
+
+        // Sanitize values
+        $current = intval($site_usage['current_sites']);
+        $limit = intval($site_usage['site_limit']);
+        $unlimited = !empty($site_usage['unlimited']);
+        $percentage = isset($site_usage['percentage_used']) ? floatval($site_usage['percentage_used']) : 0;
+
+        // Display unlimited notice
+        if ($unlimited) {
+            echo '<div class="notice notice-info"><p>';
+            echo '<strong>Site Usage:</strong> You have <strong>unlimited sites</strong> on your plan. Currently using ' . $current . ' sites.';
+            echo '</p></div>';
+            return;
+        }
+
+        // Warning when at 80% or higher
+        if ($percentage >= 80) {
+            $notice_type = ($percentage >= 100) ? 'notice-error' : 'notice-warning';
+            echo '<div class="notice ' . $notice_type . '"><p>';
+            echo '<strong>Site Usage:</strong> You are using ' . $current . ' of ' . $limit . ' sites (' . number_format($percentage, 0) . '%).';
+
+            if ($percentage >= 100) {
+                echo ' You have reached your site limit. <a href="https://cribops.com/pricing" target="_blank" class="button button-small button-primary" style="margin-left: 10px;">Upgrade Your Plan</a> to add more sites.';
+            } else {
+                echo ' <a href="https://cribops.com/pricing" target="_blank" class="button button-small" style="margin-left: 10px;">Upgrade</a> if you need more sites.';
+            }
+            echo '</p></div>';
+        } elseif ($current > 0) {
+            // Show info notice for usage below 80%
+            echo '<div class="notice notice-info"><p>';
+            echo '<strong>Site Usage:</strong> You are using ' . $current . ' of ' . $limit . ' sites (' . number_format($percentage, 0) . '%).';
+            echo '</p></div>';
+        }
     }
 }
 
