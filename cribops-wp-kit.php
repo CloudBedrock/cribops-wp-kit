@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.6.0
+ * Version:     1.6.1
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -26,7 +26,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.6.0';
+        const VERSION = '1.6.1';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -69,7 +69,7 @@ if (!class_exists('CribOpsWPKit')) {
 
         public function add_select_all_script() {
             $screen = get_current_screen();
-            if (is_object($screen) && $screen->id == 'toplevel_page_wplk' && (!isset($_GET['tab']) || $_GET['tab'] === 'settings')) {
+            if (is_object($screen) && $screen->id == 'toplevel_page_cwpk' && (!isset($_GET['tab']) || $_GET['tab'] === 'settings')) {
                 ?>
                 <script type="text/javascript">
                 jQuery(document).ready(function($) {
@@ -204,7 +204,7 @@ if (!class_exists('CribOpsWPKit')) {
 
         public function cwpk_add_script_to_menu_page() {
             $screen = get_current_screen();
-            if (is_object($screen) && $screen->id == 'toplevel_page_wplk') {
+            if (is_object($screen) && $screen->id == 'toplevel_page_cwpk') {
                 wp_register_style('cwpk-admin', WPLK_DIR_URL . 'assets/css/cwpk-admin.css', false, '1.0');
                 wp_enqueue_style('cwpk-admin');
             }
@@ -924,10 +924,10 @@ if (!class_exists('CribOpsWPKit')) {
             }
 
             if (isset($options['cwpk_checkbox_field_003']) && $options['cwpk_checkbox_field_003'] == '1') {
-                add_action('admin_head', 'lk_enable_plugin_deactivation_js');
-                add_action('admin_print_styles', 'lk_enable_plugin_deactivation_css');
-                add_filter('plugin_action_links', 'lk_add_deactivate_link', 10, 2);
-                add_filter('plugin_action_links', 'lk_add_delete_link', 10, 2);
+                add_action('admin_head', array($this, 'lk_enable_plugin_deactivation_js'));
+                add_action('admin_print_styles', array($this, 'lk_enable_plugin_deactivation_css'));
+                add_filter('plugin_action_links', array($this, 'lk_add_deactivate_link'), 10, 2);
+                add_filter('plugin_action_links', array($this, 'lk_add_delete_link'), 10, 2);
 
                 // Add virtual plugin to plugins list
                 add_filter('all_plugins', array($this, 'add_dependency_bypass_virtual_plugin'));
