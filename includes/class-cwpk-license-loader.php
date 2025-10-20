@@ -85,6 +85,15 @@ class CWPKLicenseKeyAutoloader {
 
     private function setup_enhanced_license_management() {
         if ( get_option( '__fluent_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fluent_community_pro_license', array( $this, 'override_fluent_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fluent_community_pro_license', array( $this, 'filter_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_plugin_update_transient' ) );
+            remove_filter( 'fluent_community_pro_license_status', array( $this, 'force_valid_license_status' ) );
+            remove_filter( 'fluent_community_pro_license_status_details', array( $this, 'force_valid_license_details' ) );
+            remove_filter( 'rest_pre_dispatch', array( $this, 'handle_rest_license_check' ), 10 );
+            remove_filter( 'pre_option_' . $this->license_verify_key, array( $this, 'force_license_verification_time' ) );
+            remove_filter( 'pre_update_option___fluent_community_pro_license_key', array( $this, 'catch_direct_license_update' ), 10 );
+            remove_action( 'wp_ajax_fc_pro_check_license_status', array( $this, 'handle_ajax_license_check' ), 1 );
             return;
         }
         add_filter( 'pre_option___fluent_community_pro_license', array( $this, 'override_fluent_license_status' ), 1 );
@@ -101,6 +110,11 @@ class CWPKLicenseKeyAutoloader {
 
     private function setup_fluentboards_license_management() {
         if ( get_option( '__fluentboards_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fbs_plugin_license', array( $this, 'override_fluentboards_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fbs_plugin_license', array( $this, 'filter_fluentboards_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentboards_update_transient' ) );
+            remove_filter( 'rest_pre_dispatch', array( $this, 'handle_fluentboards_rest_license_check' ), 10 );
+            remove_action( 'wp_ajax_fbs_check_license_status', array( $this, 'handle_fluentboards_ajax_license_check' ), 1 );
             return;
         }
         add_filter( 'pre_option___fbs_plugin_license', array( $this, 'override_fluentboards_license_status' ), 1 );
@@ -792,17 +806,28 @@ class CWPKLicenseKeyAutoloader {
             // FluentCommunity
             if ( ! empty( $custom_keys['fluent'] ) ) {
                 update_option( '__fluent_using_custom_key', true );
+                delete_option( '__fluent_community_pro_license' );
+                delete_option( '__fluent_community_pro_license_verify' );
+                delete_option( '__fluent_community_pro_license_key' );
+                delete_transient( 'fc_license_check_status' );
+                $this->setup_enhanced_license_management();
             } else {
                 delete_option( '__fluent_using_custom_key' );
                 update_option( '__fluent_community_pro_license_key', $default_key );
                 $this->update_fluent_license_status( $default_key );
+                $this->setup_enhanced_license_management();
             }
             // FluentBoards
             if ( ! empty( $custom_keys['fluentboards'] ) ) {
                 update_option( '__fluentboards_using_custom_key', true );
+                delete_option( '__fbs_plugin_license' );
+                delete_option( '__fbs_plugin_license_key' );
+                $this->setup_fluentboards_license_management();
             } else {
                 delete_option( '__fluentboards_using_custom_key' );
                 update_option( '__fbs_plugin_license_key', $default_key );
+                update_option( '__fbs_plugin_license', $this->override_fluentboards_license_status( null ) );
+                $this->setup_fluentboards_license_management();
             }
             // AffiliateWP
             if ( ! empty( $custom_keys['affiliatewp'] ) ) {
