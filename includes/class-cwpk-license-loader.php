@@ -34,6 +34,9 @@ class CWPKLicenseKeyAutoloader {
 
         $this->setup_enhanced_license_management();
         $this->setup_fluentboards_license_management();
+        $this->setup_fluentcampaign_license_management();
+        $this->setup_fluentsupport_license_management();
+        $this->setup_fluentbooking_license_management();
         $this->setup_affiliatewp_license_management();
         $this->setup_searchwp_license_management();
 
@@ -123,6 +126,39 @@ class CWPKLicenseKeyAutoloader {
         add_filter( 'rest_pre_dispatch', array( $this, 'handle_fluentboards_rest_license_check' ), 10, 3 );
         add_action( 'wp_ajax_fbs_check_license_status', array( $this, 'handle_fluentboards_ajax_license_check' ), 1 );
         $this->initialize_fluentboards_default_options();
+    }
+
+    private function setup_fluentcampaign_license_management() {
+        if ( get_option( '__fluentcampaign_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fluentcrm_campaign_license', array( $this, 'override_fluentcampaign_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fluentcrm_campaign_license', array( $this, 'filter_fluentcampaign_license_update' ), 10 );
+            return;
+        }
+        add_filter( 'pre_option___fluentcrm_campaign_license', array( $this, 'override_fluentcampaign_license_status' ), 1 );
+        add_filter( 'pre_update_option___fluentcrm_campaign_license', array( $this, 'filter_fluentcampaign_license_update' ), 10, 2 );
+        $this->initialize_fluentcampaign_default_options();
+    }
+
+    private function setup_fluentsupport_license_management() {
+        if ( get_option( '__fluentsupport_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fluentsupport_pro_license', array( $this, 'override_fluentsupport_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fluentsupport_pro_license', array( $this, 'filter_fluentsupport_license_update' ), 10 );
+            return;
+        }
+        add_filter( 'pre_option___fluentsupport_pro_license', array( $this, 'override_fluentsupport_license_status' ), 1 );
+        add_filter( 'pre_update_option___fluentsupport_pro_license', array( $this, 'filter_fluentsupport_license_update' ), 10, 2 );
+        $this->initialize_fluentsupport_default_options();
+    }
+
+    private function setup_fluentbooking_license_management() {
+        if ( get_option( '__fluentbooking_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fluent_booking_pro_license', array( $this, 'override_fluentbooking_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fluent_booking_pro_license', array( $this, 'filter_fluentbooking_license_update' ), 10 );
+            return;
+        }
+        add_filter( 'pre_option___fluent_booking_pro_license', array( $this, 'override_fluentbooking_license_status' ), 1 );
+        add_filter( 'pre_update_option___fluent_booking_pro_license', array( $this, 'filter_fluentbooking_license_update' ), 10, 2 );
+        $this->initialize_fluentbooking_default_options();
     }
 
     private function setup_affiliatewp_license_management() {
@@ -476,6 +512,102 @@ class CWPKLicenseKeyAutoloader {
         );
     }
 
+    // FluentCampaign Pro methods
+    public function override_fluentcampaign_license_status( $value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        return array(
+            'license_key'   => $default_key,
+            'status'        => 'valid',
+            'expires'       => date( 'Y-m-d', strtotime( '+10 years' ) ),
+            'price_id'      => '1',
+            '_last_checked' => time()
+        );
+    }
+
+    public function filter_fluentcampaign_license_update( $value, $old_value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        if ( is_array( $value ) ) {
+            $value['status']  = 'valid';
+            $value['expires'] = date( 'Y-m-d', strtotime( '+10 years' ) );
+        }
+        return $value;
+    }
+
+    private function initialize_fluentcampaign_default_options() {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentcrm_campaign_license_key', '' );
+        if ( ! $stored_key || $stored_key === $default_key ) {
+            update_option( '__fluentcrm_campaign_license', $this->override_fluentcampaign_license_status( null ) );
+        }
+    }
+
+    // FluentSupport Pro methods
+    public function override_fluentsupport_license_status( $value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        return array(
+            'license_key'   => $default_key,
+            'status'        => 'valid',
+            'expires'       => date( 'Y-m-d', strtotime( '+10 years' ) ),
+            'price_id'      => '1',
+            '_last_checked' => time()
+        );
+    }
+
+    public function filter_fluentsupport_license_update( $value, $old_value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        if ( is_array( $value ) ) {
+            $value['status']  = 'valid';
+            $value['expires'] = date( 'Y-m-d', strtotime( '+10 years' ) );
+        }
+        return $value;
+    }
+
+    private function initialize_fluentsupport_default_options() {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentsupport_pro_license_key', '' );
+        if ( ! $stored_key || $stored_key === $default_key ) {
+            update_option( '__fluentsupport_pro_license', $this->override_fluentsupport_license_status( null ) );
+        }
+    }
+
+    // FluentBooking Pro methods
+    public function override_fluentbooking_license_status( $value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        return array(
+            'license_key'   => $default_key,
+            'status'        => 'valid',
+            'expires'       => date( 'Y-m-d', strtotime( '+10 years' ) ),
+            'price_id'      => '1',
+            '_last_checked' => time()
+        );
+    }
+
+    public function filter_fluentbooking_license_update( $value, $old_value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        if ( is_array( $value ) ) {
+            $value['status']  = 'valid';
+            $value['expires'] = date( 'Y-m-d', strtotime( '+10 years' ) );
+        }
+        return $value;
+    }
+
+    private function initialize_fluentbooking_default_options() {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluent_booking_pro_license_key', '' );
+        if ( ! $stored_key || $stored_key === $default_key ) {
+            update_option( '__fluent_booking_pro_license', $this->override_fluentbooking_license_status( null ) );
+        }
+    }
+
     public function force_license_verification_time() {
         $user_data   = get_transient( 'lk_user_data' );
         $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
@@ -669,12 +801,15 @@ class CWPKLicenseKeyAutoloader {
         $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
 
         // Get saved custom-key flags.
-        $acf_custom          = get_option( 'acf_using_custom_key' );
-        $affiliatewp_custom  = get_option( '__affiliatewp_using_custom_key' );
-        $fluentboards_custom = get_option( '__fluentboards_using_custom_key' );
-        $fluent_custom       = get_option( '__fluent_using_custom_key' );
-        $kadence_custom      = get_option( 'stellarwp_uplink_using_custom_key_kadence' );
-        $searchwp_custom     = get_option( '__searchwp_using_custom_key' );
+        $acf_custom           = get_option( 'acf_using_custom_key' );
+        $affiliatewp_custom   = get_option( '__affiliatewp_using_custom_key' );
+        $fluentboards_custom  = get_option( '__fluentboards_using_custom_key' );
+        $fluentcampaign_custom= get_option( '__fluentcampaign_using_custom_key' );
+        $fluentsupport_custom = get_option( '__fluentsupport_using_custom_key' );
+        $fluentbooking_custom = get_option( '__fluentbooking_using_custom_key' );
+        $fluent_custom        = get_option( '__fluent_using_custom_key' );
+        $kadence_custom       = get_option( 'stellarwp_uplink_using_custom_key_kadence' );
+        $searchwp_custom      = get_option( '__searchwp_using_custom_key' );
         ?>
         <div class="wrap">
             <h1><?php _e( 'License Management', 'launchkit-license' ); ?></h1>
@@ -710,10 +845,37 @@ class CWPKLicenseKeyAutoloader {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><?php _e( 'FluentBooking Pro License', 'launchkit-license' ); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="custom_keys[fluentbooking]" value="1" <?php checked( $fluentbooking_custom, true ); ?> />
+                                <?php _e( 'Use my own license', 'launchkit-license' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php _e( 'FluentCampaign Pro License', 'launchkit-license' ); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="custom_keys[fluentcampaign]" value="1" <?php checked( $fluentcampaign_custom, true ); ?> />
+                                <?php _e( 'Use my own license', 'launchkit-license' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><?php _e( 'FluentCommunity Pro License', 'launchkit-license' ); ?></th>
                         <td>
                             <label>
                                 <input type="checkbox" name="custom_keys[fluent]" value="1" <?php checked( $fluent_custom, true ); ?> />
+                                <?php _e( 'Use my own license', 'launchkit-license' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php _e( 'FluentSupport Pro License', 'launchkit-license' ); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="custom_keys[fluentsupport]" value="1" <?php checked( $fluentsupport_custom, true ); ?> />
                                 <?php _e( 'Use my own license', 'launchkit-license' ); ?>
                             </label>
                         </td>
@@ -773,6 +935,15 @@ class CWPKLicenseKeyAutoloader {
             // FluentBoards
             delete_option( '__fluentboards_using_custom_key' );
             update_option( '__fbs_plugin_license_key', $default_key );
+            // FluentCampaign Pro
+            delete_option( '__fluentcampaign_using_custom_key' );
+            update_option( '__fluentcrm_campaign_license', $this->override_fluentcampaign_license_status( null ) );
+            // FluentSupport Pro
+            delete_option( '__fluentsupport_using_custom_key' );
+            update_option( '__fluentsupport_pro_license', $this->override_fluentsupport_license_status( null ) );
+            // FluentBooking Pro
+            delete_option( '__fluentbooking_using_custom_key' );
+            update_option( '__fluent_booking_pro_license', $this->override_fluentbooking_license_status( null ) );
             // AffiliateWP
             delete_option( '__affiliatewp_using_custom_key' );
             update_option( 'affwp_license_key', $default_key );
@@ -828,6 +999,39 @@ class CWPKLicenseKeyAutoloader {
                 update_option( '__fbs_plugin_license_key', $default_key );
                 update_option( '__fbs_plugin_license', $this->override_fluentboards_license_status( null ) );
                 $this->setup_fluentboards_license_management();
+            }
+            // FluentCampaign Pro
+            if ( ! empty( $custom_keys['fluentcampaign'] ) ) {
+                update_option( '__fluentcampaign_using_custom_key', true );
+                delete_option( '__fluentcrm_campaign_license' );
+                delete_option( '__fluentcrm_campaign_license_key' );
+                $this->setup_fluentcampaign_license_management();
+            } else {
+                delete_option( '__fluentcampaign_using_custom_key' );
+                update_option( '__fluentcrm_campaign_license', $this->override_fluentcampaign_license_status( null ) );
+                $this->setup_fluentcampaign_license_management();
+            }
+            // FluentSupport Pro
+            if ( ! empty( $custom_keys['fluentsupport'] ) ) {
+                update_option( '__fluentsupport_using_custom_key', true );
+                delete_option( '__fluentsupport_pro_license' );
+                delete_option( '__fluentsupport_pro_license_key' );
+                $this->setup_fluentsupport_license_management();
+            } else {
+                delete_option( '__fluentsupport_using_custom_key' );
+                update_option( '__fluentsupport_pro_license', $this->override_fluentsupport_license_status( null ) );
+                $this->setup_fluentsupport_license_management();
+            }
+            // FluentBooking Pro
+            if ( ! empty( $custom_keys['fluentbooking'] ) ) {
+                update_option( '__fluentbooking_using_custom_key', true );
+                delete_option( '__fluent_booking_pro_license' );
+                delete_option( '__fluent_booking_pro_license_key' );
+                $this->setup_fluentbooking_license_management();
+            } else {
+                delete_option( '__fluentbooking_using_custom_key' );
+                update_option( '__fluent_booking_pro_license', $this->override_fluentbooking_license_status( null ) );
+                $this->setup_fluentbooking_license_management();
             }
             // AffiliateWP
             if ( ! empty( $custom_keys['affiliatewp'] ) ) {
