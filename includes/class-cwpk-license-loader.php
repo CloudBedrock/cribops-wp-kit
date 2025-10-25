@@ -132,10 +132,12 @@ class CWPKLicenseKeyAutoloader {
         if ( get_option( '__fluentcampaign_using_custom_key' ) ) {
             remove_filter( 'pre_option___fluentcrm_campaign_license', array( $this, 'override_fluentcampaign_license_status' ), 1 );
             remove_filter( 'pre_update_option___fluentcrm_campaign_license', array( $this, 'filter_fluentcampaign_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentcampaign_update_transient' ) );
             return;
         }
         add_filter( 'pre_option___fluentcrm_campaign_license', array( $this, 'override_fluentcampaign_license_status' ), 1 );
         add_filter( 'pre_update_option___fluentcrm_campaign_license', array( $this, 'filter_fluentcampaign_license_update' ), 10, 2 );
+        add_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentcampaign_update_transient' ) );
         $this->initialize_fluentcampaign_default_options();
     }
 
@@ -143,10 +145,12 @@ class CWPKLicenseKeyAutoloader {
         if ( get_option( '__fluentsupport_using_custom_key' ) ) {
             remove_filter( 'pre_option___fluentsupport_pro_license', array( $this, 'override_fluentsupport_license_status' ), 1 );
             remove_filter( 'pre_update_option___fluentsupport_pro_license', array( $this, 'filter_fluentsupport_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentsupport_update_transient' ) );
             return;
         }
         add_filter( 'pre_option___fluentsupport_pro_license', array( $this, 'override_fluentsupport_license_status' ), 1 );
         add_filter( 'pre_update_option___fluentsupport_pro_license', array( $this, 'filter_fluentsupport_license_update' ), 10, 2 );
+        add_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentsupport_update_transient' ) );
         $this->initialize_fluentsupport_default_options();
     }
 
@@ -154,10 +158,12 @@ class CWPKLicenseKeyAutoloader {
         if ( get_option( '__fluentbooking_using_custom_key' ) ) {
             remove_filter( 'pre_option___fluent_booking_pro_license', array( $this, 'override_fluentbooking_license_status' ), 1 );
             remove_filter( 'pre_update_option___fluent_booking_pro_license', array( $this, 'filter_fluentbooking_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentbooking_update_transient' ) );
             return;
         }
         add_filter( 'pre_option___fluent_booking_pro_license', array( $this, 'override_fluentbooking_license_status' ), 1 );
         add_filter( 'pre_update_option___fluent_booking_pro_license', array( $this, 'filter_fluentbooking_license_update' ), 10, 2 );
+        add_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentbooking_update_transient' ) );
         $this->initialize_fluentbooking_default_options();
     }
 
@@ -733,6 +739,45 @@ class CWPKLicenseKeyAutoloader {
         }
         if ( isset( $transient->response['fluent-boards-pro/fluent-boards-pro.php'] ) ) {
             unset( $transient->response['fluent-boards-pro/fluent-boards-pro.php'] );
+        }
+        return $transient;
+    }
+
+    public function modify_fluentcampaign_update_transient( $transient ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentcrm_campaign_license_key' );
+        if ( $stored_key && $stored_key !== $default_key ) {
+            return $transient;
+        }
+        if ( isset( $transient->response['fluentcampaign-pro/fluentcampaign-pro.php'] ) ) {
+            unset( $transient->response['fluentcampaign-pro/fluentcampaign-pro.php'] );
+        }
+        return $transient;
+    }
+
+    public function modify_fluentsupport_update_transient( $transient ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentsupport_pro_license_key' );
+        if ( $stored_key && $stored_key !== $default_key ) {
+            return $transient;
+        }
+        if ( isset( $transient->response['fluent-support-pro/fluent-support-pro.php'] ) ) {
+            unset( $transient->response['fluent-support-pro/fluent-support-pro.php'] );
+        }
+        return $transient;
+    }
+
+    public function modify_fluentbooking_update_transient( $transient ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluent_booking_pro_license_key' );
+        if ( $stored_key && $stored_key !== $default_key ) {
+            return $transient;
+        }
+        if ( isset( $transient->response['fluent-booking/fluent-booking.php'] ) ) {
+            unset( $transient->response['fluent-booking/fluent-booking.php'] );
         }
         return $transient;
     }
