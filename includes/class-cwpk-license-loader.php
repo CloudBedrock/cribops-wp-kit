@@ -558,7 +558,12 @@ class CWPKLicenseKeyAutoloader {
     private function initialize_fluentcampaign_default_options() {
         $user_data   = get_transient( 'lk_user_data' );
         $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
-        $stored_key  = get_option( '__fluentcrm_campaign_license_key', '' );
+        // FluentCRM Pro stores license in an array
+        $license_data = get_option( '__fluentcrm_campaign_license' );
+        $stored_key = '';
+        if ( is_array( $license_data ) && isset( $license_data['license_key'] ) ) {
+            $stored_key = $license_data['license_key'];
+        }
         if ( ! $stored_key || $stored_key === $default_key ) {
             update_option( '__fluentcrm_campaign_license', $this->override_fluentcampaign_license_status( null ) );
         }
@@ -792,7 +797,12 @@ class CWPKLicenseKeyAutoloader {
     public function modify_fluentcampaign_update_transient( $transient ) {
         $user_data   = get_transient( 'lk_user_data' );
         $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
-        $stored_key  = get_option( '__fluentcrm_campaign_license_key' );
+        // FluentCRM Pro stores license in an array
+        $license_data = get_option( '__fluentcrm_campaign_license' );
+        $stored_key = '';
+        if ( is_array( $license_data ) && isset( $license_data['license_key'] ) ) {
+            $stored_key = $license_data['license_key'];
+        }
         if ( $stored_key && $stored_key !== $default_key ) {
             return $transient;
         }
