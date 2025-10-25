@@ -37,6 +37,7 @@ class CWPKLicenseKeyAutoloader {
         $this->setup_fluentcampaign_license_management();
         $this->setup_fluentsupport_license_management();
         $this->setup_fluentbooking_license_management();
+        $this->setup_fluentforms_license_management();
         $this->setup_affiliatewp_license_management();
         $this->setup_searchwp_license_management();
 
@@ -165,6 +166,19 @@ class CWPKLicenseKeyAutoloader {
         add_filter( 'pre_update_option___fluent_booking_pro_license', array( $this, 'filter_fluentbooking_license_update' ), 10, 2 );
         add_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentbooking_update_transient' ) );
         $this->initialize_fluentbooking_default_options();
+    }
+
+    private function setup_fluentforms_license_management() {
+        if ( get_option( '__fluentforms_using_custom_key' ) ) {
+            remove_filter( 'pre_option___fluentform_pro_license', array( $this, 'override_fluentforms_license_status' ), 1 );
+            remove_filter( 'pre_update_option___fluentform_pro_license', array( $this, 'filter_fluentforms_license_update' ), 10 );
+            remove_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentforms_update_transient' ) );
+            return;
+        }
+        add_filter( 'pre_option___fluentform_pro_license', array( $this, 'override_fluentforms_license_status' ), 1 );
+        add_filter( 'pre_update_option___fluentform_pro_license', array( $this, 'filter_fluentforms_license_update' ), 10, 2 );
+        add_filter( 'site_transient_update_plugins', array( $this, 'modify_fluentforms_update_transient' ) );
+        $this->initialize_fluentforms_default_options();
     }
 
     private function setup_affiliatewp_license_management() {
@@ -605,6 +619,38 @@ class CWPKLicenseKeyAutoloader {
         return $value;
     }
 
+    // FluentForms Pro methods
+    public function override_fluentforms_license_status( $value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        return array(
+            'license_key'   => $default_key,
+            'status'        => 'valid',
+            'expires'       => date( 'Y-m-d', strtotime( '+10 years' ) ),
+            'price_id'      => '1',
+            '_last_checked' => time()
+        );
+    }
+
+    public function filter_fluentforms_license_update( $value, $old_value ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        if ( is_array( $value ) ) {
+            $value['status']  = 'valid';
+            $value['expires'] = date( 'Y-m-d', strtotime( '+10 years' ) );
+        }
+        return $value;
+    }
+
+    private function initialize_fluentforms_default_options() {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentform_pro_license_key', '' );
+        if ( ! $stored_key || $stored_key === $default_key ) {
+            update_option( '__fluentform_pro_license', $this->override_fluentforms_license_status( null ) );
+        }
+    }
+
     private function initialize_fluentbooking_default_options() {
         $user_data   = get_transient( 'lk_user_data' );
         $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
@@ -782,6 +828,19 @@ class CWPKLicenseKeyAutoloader {
         return $transient;
     }
 
+    public function modify_fluentforms_update_transient( $transient ) {
+        $user_data   = get_transient( 'lk_user_data' );
+        $default_key = isset( $user_data['default_key'] ) ? $user_data['default_key'] : '';
+        $stored_key  = get_option( '__fluentform_pro_license_key' );
+        if ( $stored_key && $stored_key !== $default_key ) {
+            return $transient;
+        }
+        if ( isset( $transient->response['fluentformpro/fluentformpro.php'] ) ) {
+            unset( $transient->response['fluentformpro/fluentformpro.php'] );
+        }
+        return $transient;
+    }
+
     public function return_true() {
         return true;
     }
@@ -852,6 +911,7 @@ class CWPKLicenseKeyAutoloader {
         $fluentcampaign_custom= get_option( '__fluentcampaign_using_custom_key' );
         $fluentsupport_custom = get_option( '__fluentsupport_using_custom_key' );
         $fluentbooking_custom = get_option( '__fluentbooking_using_custom_key' );
+        $fluentforms_custom   = get_option( '__fluentforms_using_custom_key' );
         $fluent_custom        = get_option( '__fluent_using_custom_key' );
         $kadence_custom       = get_option( 'stellarwp_uplink_using_custom_key_kadence' );
         $searchwp_custom      = get_option( '__searchwp_using_custom_key' );
@@ -912,6 +972,15 @@ class CWPKLicenseKeyAutoloader {
                         <td>
                             <label>
                                 <input type="checkbox" name="custom_keys[fluent]" value="1" <?php checked( $fluent_custom, true ); ?> />
+                                <?php _e( 'Use my own license', 'launchkit-license' ); ?>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><?php _e( 'FluentForms Pro License', 'launchkit-license' ); ?></th>
+                        <td>
+                            <label>
+                                <input type="checkbox" name="custom_keys[fluentforms]" value="1" <?php checked( $fluentforms_custom, true ); ?> />
                                 <?php _e( 'Use my own license', 'launchkit-license' ); ?>
                             </label>
                         </td>
@@ -989,6 +1058,9 @@ class CWPKLicenseKeyAutoloader {
             // FluentBooking Pro
             delete_option( '__fluentbooking_using_custom_key' );
             update_option( '__fluent_booking_pro_license', $this->override_fluentbooking_license_status( null ) );
+            // FluentForms Pro
+            delete_option( '__fluentforms_using_custom_key' );
+            update_option( '__fluentform_pro_license', $this->override_fluentforms_license_status( null ) );
             // AffiliateWP
             delete_option( '__affiliatewp_using_custom_key' );
             update_option( 'affwp_license_key', $default_key );
@@ -1077,6 +1149,17 @@ class CWPKLicenseKeyAutoloader {
                 delete_option( '__fluentbooking_using_custom_key' );
                 update_option( '__fluent_booking_pro_license', $this->override_fluentbooking_license_status( null ) );
                 $this->setup_fluentbooking_license_management();
+            }
+            // FluentForms Pro
+            if ( ! empty( $custom_keys['fluentforms'] ) ) {
+                update_option( '__fluentforms_using_custom_key', true );
+                delete_option( '__fluentform_pro_license' );
+                delete_option( '__fluentform_pro_license_key' );
+                $this->setup_fluentforms_license_management();
+            } else {
+                delete_option( '__fluentforms_using_custom_key' );
+                update_option( '__fluentform_pro_license', $this->override_fluentforms_license_status( null ) );
+                $this->setup_fluentforms_license_management();
             }
             // AffiliateWP
             if ( ! empty( $custom_keys['affiliatewp'] ) ) {
