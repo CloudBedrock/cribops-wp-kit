@@ -16,9 +16,21 @@ class CWPKConfig {
      * @return string The API base URL
      */
     public static function get_api_url() {
-        // Check for environment-specific configuration
+        // Check for environment-specific configuration (wp-config.php)
         if (defined('CWPK_API_URL')) {
             return CWPK_API_URL;
+        }
+
+        // Use internal VPC endpoint if available (Docker environment variable)
+        // This avoids NAT gateway hairpinning when both WP and backend are in same VPC
+        $internalApiUrl = getenv('CWPK_INTERNAL_API_URL');
+        if ($internalApiUrl !== false && !empty($internalApiUrl)) {
+            return $internalApiUrl;
+        }
+
+        // Also check if defined as constant (wp-config.php)
+        if (defined('CWPK_INTERNAL_API_URL')) {
+            return CWPK_INTERNAL_API_URL;
         }
 
         // Check environment (can be set in wp-config.php)
