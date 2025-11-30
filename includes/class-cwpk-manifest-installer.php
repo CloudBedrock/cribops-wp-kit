@@ -14,53 +14,85 @@ class CWPK_Manifest_Installer {
 
     /**
      * Get plugin manifest from API
+     *
+     * @param bool $force_refresh Skip cache and fetch fresh data
      */
-    public function get_plugin_manifest() {
+    public function get_plugin_manifest($force_refresh = false) {
         $user_data = get_transient('lk_user_data');
 
         if (!$user_data || empty($user_data['email'])) {
             return new WP_Error('not_logged_in', 'Please log in to access plugins');
         }
 
-        // Determine the authorization token to use
-        // If using API token auth, use the actual bearer token; otherwise use email
-        $auth_token = $user_data['email'];
-        if (class_exists('CWPKAuth')) {
-            $bearer_token = CWPKAuth::get_env_bearer_token();
-            if ($bearer_token) {
-                $auth_token = $bearer_token;
+        // Check for cached API response (cached by Object Cache Pro in Redis)
+        $cache_key = 'cwpk_plugin_manifest_api';
+        $cached_api_data = $force_refresh ? false : get_transient($cache_key);
+
+        if ($cached_api_data === false) {
+            // Determine the authorization token to use
+            // If using API token auth, use the actual bearer token; otherwise use email
+            $auth_token = $user_data['email'];
+            if (class_exists('CWPKAuth')) {
+                $bearer_token = CWPKAuth::get_env_bearer_token();
+                if ($bearer_token) {
+                    $auth_token = $bearer_token;
+                }
             }
+
+            // Call the API to get plugin manifest
+            $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
+            $response = wp_remote_get(
+                $api_url . '/api/wp-kit/plugins',
+                array(
+                    'headers' => array(
+                        'Authorization' => 'Bearer ' . $auth_token,
+                        'Content-Type' => 'application/json'
+                    ),
+                    'timeout' => 30
+                )
+            );
+
+            if (is_wp_error($response)) {
+                return $response;
+            }
+
+            $body = wp_remote_retrieve_body($response);
+            $cached_api_data = json_decode($body, true);
+
+            if (!$cached_api_data || !isset($cached_api_data['plugins'])) {
+                // Fallback to local manifest if API fails
+                return $this->get_local_manifest();
+            }
+
+            // Cache the API response for 5 minutes (stored in Redis by Object Cache Pro)
+            set_transient($cache_key, $cached_api_data, 5 * MINUTE_IN_SECONDS);
         }
 
-        // Call the API to get plugin manifest
-        $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
-        $response = wp_remote_get(
-            $api_url . '/api/wp-kit/plugins',
-            array(
-                'headers' => array(
-                    'Authorization' => 'Bearer ' . $auth_token,
-                    'Content-Type' => 'application/json'
-                ),
-                'timeout' => 30
-            )
-        );
-
-        if (is_wp_error($response)) {
-            return $response;
+        // Pre-load installed plugins ONCE for performance (instead of per-plugin)
+        // Note: We always check installed status fresh (not cached) since plugins can change
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
+        wp_cache_delete('plugins', 'plugins');
+        $installed_plugins = get_plugins();
 
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
-
-        if (!$data || !isset($data['plugins'])) {
-            // Fallback to local manifest if API fails
-            return $this->get_local_manifest();
+        // Build a lookup map of installed plugins by slug for O(1) lookups
+        $installed_map = array();
+        foreach ($installed_plugins as $plugin_file => $plugin_info) {
+            $plugin_slug = dirname($plugin_file);
+            if ($plugin_slug === '.') {
+                $plugin_slug = basename($plugin_file, '.php');
+            }
+            $installed_map[$plugin_slug] = array(
+                'file' => $plugin_file,
+                'active' => is_plugin_active($plugin_file)
+            );
         }
 
         // Process plugins to ensure consistent structure
         $plugins = array();
-        foreach ($data['plugins'] as $plugin) {
-            $plugins[] = $this->normalize_plugin_data($plugin);
+        foreach ($cached_api_data['plugins'] as $plugin) {
+            $plugins[] = $this->normalize_plugin_data($plugin, $installed_map);
         }
 
         return $plugins;
@@ -68,8 +100,11 @@ class CWPK_Manifest_Installer {
 
     /**
      * Normalize plugin data structure
+     *
+     * @param array $plugin Plugin data from API
+     * @param array $installed_map Pre-loaded map of installed plugins for O(1) lookups
      */
-    private function normalize_plugin_data($plugin) {
+    private function normalize_plugin_data($plugin, $installed_map = array()) {
         $slug = isset($plugin['slug']) ? $plugin['slug'] : '';
 
         // Check if file is already downloaded
@@ -78,8 +113,11 @@ class CWPK_Manifest_Installer {
         $file_path = $target_dir . '/' . $slug . '.zip';
         $is_downloaded = file_exists($file_path);
 
-        // Get plugin status
-        $status = $this->get_plugin_status($slug);
+        // Get plugin status from pre-loaded map (O(1) lookup instead of O(n) scan)
+        $status = 'not_installed';
+        if (isset($installed_map[$slug])) {
+            $status = $installed_map[$slug]['active'] ? 'active' : 'inactive';
+        }
 
         // If not installed but file exists, mark as downloaded
         if ($status === 'not_installed' && $is_downloaded) {
@@ -170,10 +208,38 @@ class CWPK_Manifest_Installer {
         if (file_exists($target_dir)) {
             $files = glob($target_dir . '/*.zip');
 
+            // Pre-load installed plugins ONCE for performance
+            if (!function_exists('get_plugins')) {
+                require_once ABSPATH . 'wp-admin/includes/plugin.php';
+            }
+            wp_cache_delete('plugins', 'plugins');
+            $installed_plugins = get_plugins();
+
+            // Build lookup map
+            $installed_map = array();
+            foreach ($installed_plugins as $plugin_file => $plugin_info) {
+                $plugin_slug = dirname($plugin_file);
+                if ($plugin_slug === '.') {
+                    $plugin_slug = basename($plugin_file, '.php');
+                }
+                $installed_map[$plugin_slug] = array(
+                    'file' => $plugin_file,
+                    'active' => is_plugin_active($plugin_file)
+                );
+            }
+
             foreach ($files as $file) {
                 $plugin_name = basename($file, '.zip');
+                $slug = sanitize_title($plugin_name);
+
+                // Get status from pre-loaded map
+                $status = 'not_installed';
+                if (isset($installed_map[$slug])) {
+                    $status = $installed_map[$slug]['active'] ? 'active' : 'inactive';
+                }
+
                 $plugins[] = array(
-                    'slug' => sanitize_title($plugin_name),
+                    'slug' => $slug,
                     'name' => $plugin_name,
                     'author' => '',
                     'description' => '',
@@ -186,7 +252,7 @@ class CWPK_Manifest_Installer {
                     's3_url' => '',
                     'cdn_url' => '',
                     'download_url' => trailingslashit($upload_dir['baseurl']) . 'cribops-wp-kit/' . basename($file),
-                    'status' => $this->get_plugin_status(sanitize_title($plugin_name)),
+                    'status' => $status,
                     'local' => true
                 );
             }
@@ -591,10 +657,10 @@ class CWPK_Manifest_Installer {
     public function ajax_get_manifest() {
         check_ajax_referer('cwpk_manifest_nonce', 'security');
 
-        // Clear plugin cache before getting manifest to ensure fresh data
-        wp_cache_delete('plugins', 'plugins');
+        // Check if force refresh is requested (e.g., clicking "Refresh List" button)
+        $force_refresh = isset($_POST['force_refresh']) && $_POST['force_refresh'] === 'true';
 
-        $manifest = $this->get_plugin_manifest();
+        $manifest = $this->get_plugin_manifest($force_refresh);
 
         if (is_wp_error($manifest)) {
             wp_send_json_error($manifest->get_error_message());
@@ -1119,7 +1185,9 @@ class CWPK_Manifest_Installer {
                 },
 
                 bindEvents: function() {
-                    $('#cwpk-refresh-manifest').on('click', this.loadManifest.bind(this));
+                    var self = this;
+                    // "Refresh List" button forces cache refresh
+                    $('#cwpk-refresh-manifest').on('click', function() { self.loadManifest(true); });
                     $('#cwpk-download-selected').on('click', this.downloadSelected.bind(this));
                     $('#cwpk-install-downloaded').on('click', this.installDownloaded.bind(this));
                     $('#cwpk-select-all').on('change', this.toggleSelectAll.bind(this));
@@ -1311,14 +1379,14 @@ class CWPK_Manifest_Installer {
                     }
                 },
 
-                loadManifest: function() {
+                loadManifest: function(forceRefresh) {
                     $('#cwpk-manifest-status').text('Loading plugin list...');
 
-                    // Add a cache buster to force fresh data
+                    // Pass force_refresh to bypass Redis cache when user clicks "Refresh List"
                     $.post(ajaxurl, {
                         action: 'cwpk_get_manifest',
                         security: '<?php echo wp_create_nonce('cwpk_manifest_nonce'); ?>',
-                        _nocache: Date.now() // Cache buster
+                        force_refresh: forceRefresh ? 'true' : 'false'
                     }, function(response) {
                         if (response.success) {
                             manifestInstaller.plugins = response.data;
