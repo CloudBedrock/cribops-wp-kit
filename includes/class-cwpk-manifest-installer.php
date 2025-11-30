@@ -22,13 +22,23 @@ class CWPK_Manifest_Installer {
             return new WP_Error('not_logged_in', 'Please log in to access plugins');
         }
 
+        // Determine the authorization token to use
+        // If using API token auth, use the actual bearer token; otherwise use email
+        $auth_token = $user_data['email'];
+        if (class_exists('CWPKAuth')) {
+            $bearer_token = CWPKAuth::get_env_bearer_token();
+            if ($bearer_token) {
+                $auth_token = $bearer_token;
+            }
+        }
+
         // Call the API to get plugin manifest
         $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
         $response = wp_remote_get(
             $api_url . '/api/wp-kit/plugins',
             array(
                 'headers' => array(
-                    'Authorization' => 'Bearer ' . $user_data['email'], // Email is used as API token
+                    'Authorization' => 'Bearer ' . $auth_token,
                     'Content-Type' => 'application/json'
                 ),
                 'timeout' => 30
@@ -208,13 +218,22 @@ class CWPK_Manifest_Installer {
 
         // If no direct URL, try API endpoint
         if (empty($download_url) && !empty($plugin_data['slug'])) {
+            // Determine the authorization token to use
+            $auth_token = $user_data['email'];
+            if (class_exists('CWPKAuth')) {
+                $bearer_token = CWPKAuth::get_env_bearer_token();
+                if ($bearer_token) {
+                    $auth_token = $bearer_token;
+                }
+            }
+
             // Get download URL from API
             $api_url = class_exists('CWPKConfig') ? CWPKConfig::get_api_url() : 'https://cribops.com';
             $response = wp_remote_get(
                 $api_url . '/api/wp-kit/plugins/' . $plugin_data['slug'] . '/download',
                 array(
                     'headers' => array(
-                        'Authorization' => 'Bearer ' . $user_data['email'] // Email is used as API token
+                        'Authorization' => 'Bearer ' . $auth_token
                     ),
                     'timeout' => 60,
                     'redirection' => 0 // Don't follow redirects automatically
