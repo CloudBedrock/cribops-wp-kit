@@ -24,9 +24,19 @@ class CWPK_Manifest_Installer {
             return new WP_Error('not_logged_in', 'Please log in to access plugins');
         }
 
+        // Check for fully processed manifest cache (includes installed status)
+        // This is a short TTL (60s) since installed status can change
+        $processed_cache_key = 'cwpk_processed_manifest';
+        if (!$force_refresh) {
+            $cached_processed = get_transient($processed_cache_key);
+            if ($cached_processed !== false) {
+                return $cached_processed;
+            }
+        }
+
         // Check for cached API response (cached by Object Cache Pro in Redis)
-        $cache_key = 'cwpk_plugin_manifest_api';
-        $cached_api_data = $force_refresh ? false : get_transient($cache_key);
+        $api_cache_key = 'cwpk_plugin_manifest_api';
+        $cached_api_data = $force_refresh ? false : get_transient($api_cache_key);
 
         if ($cached_api_data === false) {
             // Determine the authorization token to use
@@ -65,11 +75,10 @@ class CWPK_Manifest_Installer {
             }
 
             // Cache the API response for 5 minutes (stored in Redis by Object Cache Pro)
-            set_transient($cache_key, $cached_api_data, 5 * MINUTE_IN_SECONDS);
+            set_transient($api_cache_key, $cached_api_data, 5 * MINUTE_IN_SECONDS);
         }
 
         // Pre-load installed plugins ONCE for performance (instead of per-plugin)
-        // Note: We always check installed status fresh (not cached) since plugins can change
         if (!function_exists('get_plugins')) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
@@ -89,11 +98,26 @@ class CWPK_Manifest_Installer {
             );
         }
 
+        // Get list of downloaded files ONCE (instead of per-plugin file_exists)
+        $upload_dir = wp_upload_dir();
+        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
+        $downloaded_files = array();
+        if (is_dir($target_dir)) {
+            $files = glob($target_dir . '/*.zip');
+            foreach ($files as $file) {
+                $slug = basename($file, '.zip');
+                $downloaded_files[$slug] = true;
+            }
+        }
+
         // Process plugins to ensure consistent structure
         $plugins = array();
         foreach ($cached_api_data['plugins'] as $plugin) {
-            $plugins[] = $this->normalize_plugin_data($plugin, $installed_map);
+            $plugins[] = $this->normalize_plugin_data($plugin, $installed_map, $downloaded_files);
         }
+
+        // Cache the fully processed manifest for 60 seconds
+        set_transient($processed_cache_key, $plugins, 60);
 
         return $plugins;
     }
@@ -103,15 +127,13 @@ class CWPK_Manifest_Installer {
      *
      * @param array $plugin Plugin data from API
      * @param array $installed_map Pre-loaded map of installed plugins for O(1) lookups
+     * @param array $downloaded_files Pre-loaded map of downloaded files for O(1) lookups
      */
-    private function normalize_plugin_data($plugin, $installed_map = array()) {
+    private function normalize_plugin_data($plugin, $installed_map = array(), $downloaded_files = array()) {
         $slug = isset($plugin['slug']) ? $plugin['slug'] : '';
 
-        // Check if file is already downloaded
-        $upload_dir = wp_upload_dir();
-        $target_dir = trailingslashit($upload_dir['basedir']) . 'cribops-wp-kit';
-        $file_path = $target_dir . '/' . $slug . '.zip';
-        $is_downloaded = file_exists($file_path);
+        // Check downloaded status from pre-loaded map (O(1) lookup instead of per-file file_exists)
+        $is_downloaded = isset($downloaded_files[$slug]);
 
         // Get plugin status from pre-loaded map (O(1) lookup instead of O(n) scan)
         $status = 'not_installed';
