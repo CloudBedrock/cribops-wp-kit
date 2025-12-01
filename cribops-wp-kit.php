@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.8.5
+ * Version:     1.9.0
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -21,12 +21,17 @@
 
 if (!defined('ABSPATH')) exit;
 
+// Load Composer autoloader for AWS SDK (if vendor exists)
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
 // Prevent redeclaration by checking if the class already exists.
 if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.8.5';
+        const VERSION = '1.9.0';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -125,9 +130,13 @@ if (!class_exists('CribOpsWPKit')) {
             require_once('includes/class-cwpk-theme-manager.php');
             // require_once('includes/class-cwpk-updater.php'); // Disabled - using GitHub updater
             require_once('includes/class-cwpk-github-updater.php');
+            require_once('includes/class-cwpk-cdn.php');
 
             // Initialize development tools
             new CWPKDevTools();
+
+            // Initialize CDN integration
+            CWPK_CDN::get_instance();
 
             // Load MainWP Child integration if MainWP Child plugin is active
             // Check multiple ways to detect MainWP Child plugin
@@ -395,6 +404,7 @@ if (!class_exists('CribOpsWPKit')) {
                 <nav class="nav-tab-wrapper">
                     <a href="?page=cwpk&tab=installer" class="nav-tab <?php if ($tab === 'installer'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Installer', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License Manager', 'cwpk'); ?></a>
+                    <a href="?page=cwpk&tab=cdn" class="nav-tab <?php if ($tab === 'cdn'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('CDN', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=settings" class="nav-tab <?php if ($tab === 'settings'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Settings', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=featured" class="nav-tab <?php if ($tab === 'featured'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Other Tools', 'cwpk'); ?></a>
 
@@ -439,6 +449,16 @@ if (!class_exists('CribOpsWPKit')) {
                                     <?php
                                     $license = new CWPKLicenseKeyAutoloader();
                                     $license->license_key_autoloader_page();
+                                    ?>
+                                </div>
+                            </div>
+                        <?php break;
+                        case 'cdn': ?>
+                            <div class="cwpk-dashboard__content">
+                                <div class="cwpk-inner">
+                                    <?php
+                                    $cdn = CWPK_CDN::get_instance();
+                                    $cdn->render_admin_page();
                                     ?>
                                 </div>
                             </div>

@@ -1,0 +1,18 @@
+{
+    "name": "cribops/cribops-wp-kit",
+    "description": "WordPress site management and deployment toolkit with CDN integration",
+    "type": "wordpress-plugin",
+    "require": {
+        "php": ">=7.4",
+        "aws/aws-sdk-php": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "CribOps\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist"
+    }
+}
