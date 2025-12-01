@@ -25,6 +25,23 @@ jobs:
     - name: Fetch tags
       run: git fetch --tags --force
 
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        tools: composer
+
+    - name: Install Composer dependencies
+      run: composer install --no-dev --optimize-autoloader
+
+    - name: Verify vendor directory
+      run: |
+        if [ ! -d "vendor" ]; then
+          echo "Error: vendor directory is missing!" >&2
+          exit 1
+        fi
+        echo "Vendor directory created with $(find vendor -type f | wc -l) files"
+
     - name: Get version from tag
       id: version
       run: |
@@ -44,8 +61,17 @@ jobs:
 
     - name: Create zip of entire project
       run: |
-        zip -r cribops-wp-kit.zip .
+        zip -r cribops-wp-kit.zip . \
+          -x ".git/*" \
+          -x ".github/*" \
+          -x ".gitignore" \
+          -x "composer.json" \
+          -x "composer.lock" \
+          -x "*.md" \
+          -x ".claude/*" \
+          -x "CLAUDE.md"
         echo "ZIP created for version ${{ env.NEW_VERSION }}"
+        unzip -l cribops-wp-kit.zip | tail -20
 
     - name: Check if the release already exists and get the upload URL
       id: check_release

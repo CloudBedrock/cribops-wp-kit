@@ -23,8 +23,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-use Aws\S3\S3Client;
-use Aws\Exception\AwsException;
+// AWS SDK classes are loaded dynamically via fully-qualified names
+// to avoid fatal errors when vendor directory is missing
 
 class CWPK_CDN {
 
@@ -60,8 +60,8 @@ class CWPK_CDN {
         global $wpdb;
         $this->table_name = $wpdb->prefix . 'cwpk_cdn_items';
 
-        // Only initialize if CDN is properly configured
-        if (!$this->is_configured()) {
+        // Only initialize if CDN is properly configured AND SDK is available
+        if (!$this->is_configured() || !$this->is_sdk_available()) {
             return;
         }
 
@@ -93,6 +93,13 @@ class CWPK_CDN {
     }
 
     /**
+     * Check if AWS SDK is available
+     */
+    public function is_sdk_available() {
+        return class_exists('Aws\S3\S3Client');
+    }
+
+    /**
      * Check if CDN is properly configured
      */
     public function is_configured() {
@@ -101,10 +108,17 @@ class CWPK_CDN {
     }
 
     /**
+     * Check if CDN is fully operational (configured AND SDK available)
+     */
+    public function is_operational() {
+        return $this->is_configured() && $this->is_sdk_available();
+    }
+
+    /**
      * Check if CDN is enabled
      */
     public function is_enabled() {
-        if (!$this->is_configured()) {
+        if (!$this->is_operational()) {
             return false;
         }
         $enabled = getenv('CWPK_CDN_ENABLED');
@@ -147,6 +161,11 @@ class CWPK_CDN {
             return $this->s3_client;
         }
 
+        // Check if AWS SDK is available
+        if (!$this->is_sdk_available()) {
+            return null;
+        }
+
         $config = $this->get_config();
 
         $args = array(
@@ -163,8 +182,8 @@ class CWPK_CDN {
         }
 
         try {
-            $this->s3_client = new S3Client($args);
-        } catch (Exception $e) {
+            $this->s3_client = new \Aws\S3\S3Client($args);
+        } catch (\Exception $e) {
             error_log('CWPK CDN: Failed to create S3 client - ' . $e->getMessage());
             return null;
         }
@@ -269,7 +288,7 @@ class CWPK_CDN {
                 'Bucket' => $config['bucket'],
                 'Delete' => array('Objects' => $objects),
             ));
-        } catch (AwsException $e) {
+        } catch (\Aws\Exception\AwsException $e) {
             error_log('CWPK CDN: Failed to delete from S3 - ' . $e->getMessage());
         }
 
@@ -359,7 +378,7 @@ class CWPK_CDN {
                     'file_hash'     => md5_file($file['local_path']),
                 ), array('%d', '%s', '%s', '%s', '%s', '%s'));
 
-            } catch (AwsException $e) {
+            } catch (\Aws\Exception\AwsException $e) {
                 error_log('CWPK CDN: Failed to upload ' . $file['relative_path'] . ' - ' . $e->getMessage());
                 $success = false;
             }
@@ -729,7 +748,7 @@ class CWPK_CDN {
 
             return $cdn_url;
 
-        } catch (AwsException $e) {
+        } catch (\Aws\Exception\AwsException $e) {
             error_log('CWPK CDN: Failed to upload asset - ' . $e->getMessage());
             return false;
         }
@@ -830,7 +849,7 @@ class CWPK_CDN {
                 'region'  => $config['region'],
             ));
 
-        } catch (AwsException $e) {
+        } catch (\Aws\Exception\AwsException $e) {
             wp_send_json_error('Connection failed: ' . $e->getAwsErrorMessage());
         }
     }
@@ -919,8 +938,9 @@ class CWPK_CDN {
     public function render_admin_page() {
         $config = $this->get_config();
         $is_configured = $this->is_configured();
+        $is_sdk_available = $this->is_sdk_available();
         $is_enabled = $this->is_enabled();
-        $status = $is_configured ? $this->get_sync_status() : null;
+        $status = ($is_configured && $is_sdk_available) ? $this->get_sync_status() : null;
         ?>
         <div class="cwpk-cdn-admin">
             <h2><?php esc_html_e('CDN Settings', 'cwpk'); ?></h2>
@@ -972,6 +992,17 @@ class CWPK_CDN {
                         </td>
                     </tr>
                     <tr>
+                        <th><?php esc_html_e('AWS SDK', 'cwpk'); ?></th>
+                        <td>
+                            <?php if ($is_sdk_available): ?>
+                                <span class="cwpk-cdn-status-ok"><?php esc_html_e('Installed', 'cwpk'); ?></span>
+                            <?php else: ?>
+                                <span class="cwpk-cdn-status-error"><?php esc_html_e('Not installed', 'cwpk'); ?></span>
+                                <br><small><?php esc_html_e('Run: composer install in the plugin directory', 'cwpk'); ?></small>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th><?php esc_html_e('CSS/JS Minification', 'cwpk'); ?></th>
                         <td>
                             <?php if ($this->is_minify_enabled()): ?>
@@ -984,7 +1015,7 @@ class CWPK_CDN {
                     </tr>
                 </table>
 
-                <?php if ($is_configured): ?>
+                <?php if ($is_configured && $is_sdk_available): ?>
                     <p>
                         <button type="button" class="button" id="cwpk-cdn-test-connection">
                             <?php esc_html_e('Test Connection', 'cwpk'); ?>
@@ -1039,9 +1070,19 @@ class CWPK_CDN {
             </div>
             <?php endif; ?>
 
-            <?php if (!$is_configured): ?>
+            <?php if (!$is_configured || !$is_sdk_available): ?>
             <div class="cwpk-cdn-setup-box">
                 <h3><?php esc_html_e('Setup Instructions', 'cwpk'); ?></h3>
+
+                <?php if (!$is_sdk_available): ?>
+                <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+                    <strong><?php esc_html_e('AWS SDK not installed', 'cwpk'); ?></strong><br>
+                    <?php esc_html_e('Run the following command in the plugin directory:', 'cwpk'); ?>
+                    <pre style="margin: 5px 0 0 0;">composer install</pre>
+                </div>
+                <?php endif; ?>
+
+                <?php if (!$is_configured): ?>
                 <p><?php esc_html_e('To enable CDN integration, add the following environment variables:', 'cwpk'); ?></p>
                 <pre>
 # Required
@@ -1057,6 +1098,7 @@ CWPK_CDN_MINIFY=1
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
                 </pre>
+                <?php endif; ?>
             </div>
             <?php endif; ?>
 
