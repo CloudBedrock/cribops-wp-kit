@@ -25,6 +25,9 @@ class CWPKLicenseKeyAutoloader {
         }
         $this->plugin_file = $plugin_file;
 
+        // COMMENTED OUT: License auto-loading functionality
+        // Uncomment these lines to re-enable automatic license loading
+        /*
         $this->license_key_autoloader_check_default_key();
 
         add_action( 'admin_menu', array( $this, 'launchkit_license_menu' ) );
@@ -40,9 +43,13 @@ class CWPKLicenseKeyAutoloader {
         $this->setup_fluentforms_license_management();
         $this->setup_affiliatewp_license_management();
         $this->setup_searchwp_license_management();
+        */
 
+        // Keep notice suppression functionality active
         add_action( 'admin_init', array( $this, 'remove_license_notices' ), 999 );
-        register_deactivation_hook( $this->plugin_file, array( $this, 'cleanup_on_deactivation' ) );
+
+        // COMMENTED OUT: Cleanup on deactivation
+        // register_deactivation_hook( $this->plugin_file, array( $this, 'cleanup_on_deactivation' ) );
     }
 
     /**
