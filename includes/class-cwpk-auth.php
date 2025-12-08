@@ -66,7 +66,7 @@ class CWPKAuth {
                 'body' => json_encode(array(
                     'site_url' => $site_url
                 )),
-                'timeout' => 30
+                'timeout' => 10
             )
         );
 
@@ -112,7 +112,7 @@ class CWPKAuth {
                     'password' => $password,
                     'site_url' => $site_url
                 ),
-                'timeout' => 30
+                'timeout' => 10
             )
         );
 
@@ -143,13 +143,26 @@ class CWPKAuth {
             // Token auth doesn't expire during session
             $token_auth = get_transient('cwpk_token_auth');
             if ($token_auth === false) {
+                // Check if there's a recent auth failure cached
+                $auth_failure = get_transient('cwpk_auth_failure');
+                if ($auth_failure !== false) {
+                    // Don't retry if we recently failed
+                    return false;
+                }
+
                 // Validate token and cache result
                 $result = self::authenticate_with_token($token);
                 if (!is_wp_error($result)) {
                     set_transient('cwpk_token_auth', true, HOUR_IN_SECONDS);
                     set_transient('lk_user_data', $result, HOUR_IN_SECONDS);
                     set_transient('lk_logged_in', true, HOUR_IN_SECONDS);
+                    // Clear any previous failure cache
+                    delete_transient('cwpk_auth_failure');
                     return true;
+                } else {
+                    // Cache the failure for 5 minutes to prevent hammering the API
+                    set_transient('cwpk_auth_failure', true, 5 * MINUTE_IN_SECONDS);
+                    return false;
                 }
             } else {
                 return true;
@@ -172,13 +185,23 @@ class CWPKAuth {
             if ($token_auth !== false) {
                 return 'token';
             }
+            // Check if there's a recent auth failure cached
+            $auth_failure = get_transient('cwpk_auth_failure');
+            if ($auth_failure !== false) {
+                // Don't retry if we recently failed
+                return 'none';
+            }
             // Try to authenticate with token
             $result = self::authenticate_with_token($token);
             if (!is_wp_error($result)) {
                 set_transient('cwpk_token_auth', true, HOUR_IN_SECONDS);
                 set_transient('lk_user_data', $result, HOUR_IN_SECONDS);
                 set_transient('lk_logged_in', true, HOUR_IN_SECONDS);
+                delete_transient('cwpk_auth_failure');
                 return 'token';
+            } else {
+                // Cache the failure for 5 minutes
+                set_transient('cwpk_auth_failure', true, 5 * MINUTE_IN_SECONDS);
             }
         }
 
@@ -213,11 +236,22 @@ class CWPKAuth {
         if ($token) {
             $token_auth = get_transient('cwpk_token_auth');
             if ($token_auth === false) {
+                // Check if there's a recent auth failure cached
+                $auth_failure = get_transient('cwpk_auth_failure');
+                if ($auth_failure !== false) {
+                    // Don't retry if we recently failed
+                    return;
+                }
+
                 $result = self::authenticate_with_token($token);
                 if (!is_wp_error($result)) {
                     set_transient('cwpk_token_auth', true, HOUR_IN_SECONDS);
                     set_transient('lk_user_data', $result, HOUR_IN_SECONDS);
                     set_transient('lk_logged_in', true, HOUR_IN_SECONDS);
+                    delete_transient('cwpk_auth_failure');
+                } else {
+                    // Cache the failure for 5 minutes
+                    set_transient('cwpk_auth_failure', true, 5 * MINUTE_IN_SECONDS);
                 }
             }
         }
