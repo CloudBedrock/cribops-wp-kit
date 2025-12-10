@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.9.3
+ * Version:     1.9.4
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -31,7 +31,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.9.3';
+        const VERSION = '1.9.4';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -50,6 +50,9 @@ if (!class_exists('CribOpsWPKit')) {
             // Login/Logout handlers
             add_action('admin_post_cwpk_login', array($this, 'cwpk_handle_login'));
             add_action('admin_post_cwpk_logout', array($this, 'cwpk_handle_logout'));
+
+            // License cleanup AJAX handler
+            add_action('wp_ajax_cwpk_clear_licenses', array($this, 'ajax_clear_licenses'));
         }
 
         public function check_and_delete_original_plugin() {
@@ -406,6 +409,7 @@ if (!class_exists('CribOpsWPKit')) {
                     <?php /* COMMENTED OUT: License Manager tab - uncomment to re-enable
                     <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License Manager', 'cwpk'); ?></a>
                     */ ?>
+                    <a href="?page=cwpk&tab=license-cleanup" class="nav-tab <?php if ($tab === 'license-cleanup'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License Cleanup', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=cdn" class="nav-tab <?php if ($tab === 'cdn'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('CDN', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=settings" class="nav-tab <?php if ($tab === 'settings'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Settings', 'cwpk'); ?></a>
                     <a href="?page=cwpk&tab=featured" class="nav-tab <?php if ($tab === 'featured'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Other Tools', 'cwpk'); ?></a>
@@ -472,6 +476,13 @@ if (!class_exists('CribOpsWPKit')) {
                                     $packages = new CWPKInstaller();
                                     $packages->get_prime_page();
                                     ?>
+                                </div>
+                            </div>
+                        <?php break;
+                        case 'license-cleanup': ?>
+                            <div class="cwpk-dashboard__content">
+                                <div class="cwpk-inner">
+                                    <?php $this->render_license_cleanup_page(); ?>
                                 </div>
                             </div>
                         <?php break;
@@ -994,6 +1005,358 @@ if (!class_exists('CribOpsWPKit')) {
                     }
                 }
                 update_option('cwpk_settings', $options);
+            }
+        }
+
+        /**
+         * License Cleanup Page
+         */
+        public function render_license_cleanup_page() {
+            ?>
+            <h1><?php esc_html_e('License Cleanup', 'cwpk'); ?></h1>
+            <p><?php esc_html_e('Clear hard-coded licenses that may have been set by earlier versions of this plugin. This will allow you to enter your own legitimate licenses.', 'cwpk'); ?></p>
+
+            <div id="license-cleanup-status" style="margin: 20px 0;"></div>
+
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;"><?php esc_html_e('Plugin', 'cwpk'); ?></th>
+                        <th style="width: 50%;"><?php esc_html_e('Current Status', 'cwpk'); ?></th>
+                        <th style="width: 20%;"><?php esc_html_e('Action', 'cwpk'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php
+                    $licenses = $this->get_license_status();
+                    foreach ($licenses as $plugin => $info) {
+                        $row_class = $info['has_license'] ? 'license-found' : '';
+                        ?>
+                        <tr class="<?php echo esc_attr($row_class); ?>">
+                            <td><strong><?php echo esc_html($info['name']); ?></strong></td>
+                            <td>
+                                <?php if ($info['has_license']) : ?>
+                                    <span style="color: #d63638;">
+                                        ⚠ <?php esc_html_e('License found', 'cwpk'); ?>
+                                        <?php if (!empty($info['expires'])) : ?>
+                                            - <?php echo esc_html($info['expires']); ?>
+                                        <?php endif; ?>
+                                    </span>
+                                <?php else : ?>
+                                    <span style="color: #00a32a;">✓ <?php esc_html_e('No license set', 'cwpk'); ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ($info['has_license']) : ?>
+                                    <button type="button" class="button clear-single-license" data-plugin="<?php echo esc_attr($plugin); ?>">
+                                        <?php esc_html_e('Clear License', 'cwpk'); ?>
+                                    </button>
+                                <?php else : ?>
+                                    <span style="color: #999;">—</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php
+                    }
+                    ?>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 20px;">
+                <button type="button" id="clear-all-licenses" class="button button-primary button-large">
+                    <?php esc_html_e('Clear All Licenses', 'cwpk'); ?>
+                </button>
+            </p>
+
+            <script type="text/javascript">
+            jQuery(document).ready(function($) {
+                function showMessage(message, type) {
+                    var className = type === 'success' ? 'notice-success' : 'notice-error';
+                    $('#license-cleanup-status').html('<div class="notice ' + className + ' is-dismissible"><p>' + message + '</p></div>');
+                    setTimeout(function() {
+                        $('#license-cleanup-status').fadeOut(function() {
+                            $(this).html('').show();
+                        });
+                    }, 3000);
+                }
+
+                $('.clear-single-license').on('click', function() {
+                    var $button = $(this);
+                    var plugin = $button.data('plugin');
+
+                    if (!confirm('Are you sure you want to clear the license for ' + plugin + '?')) {
+                        return;
+                    }
+
+                    $button.prop('disabled', true).text('Clearing...');
+
+                    $.post(ajaxurl, {
+                        action: 'cwpk_clear_licenses',
+                        plugin: plugin,
+                        nonce: '<?php echo wp_create_nonce('cwpk_clear_licenses'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            showMessage(response.data.message, 'success');
+                            location.reload();
+                        } else {
+                            showMessage(response.data.message || 'Error clearing license', 'error');
+                            $button.prop('disabled', false).text('Clear License');
+                        }
+                    });
+                });
+
+                $('#clear-all-licenses').on('click', function() {
+                    var $button = $(this);
+
+                    if (!confirm('Are you sure you want to clear ALL licenses? This cannot be undone.')) {
+                        return;
+                    }
+
+                    $button.prop('disabled', true).text('Clearing all licenses...');
+
+                    $.post(ajaxurl, {
+                        action: 'cwpk_clear_licenses',
+                        plugin: 'all',
+                        nonce: '<?php echo wp_create_nonce('cwpk_clear_licenses'); ?>'
+                    }, function(response) {
+                        if (response.success) {
+                            showMessage(response.data.message, 'success');
+                            location.reload();
+                        } else {
+                            showMessage(response.data.message || 'Error clearing licenses', 'error');
+                            $button.prop('disabled', false).text('Clear All Licenses');
+                        }
+                    });
+                });
+            });
+            </script>
+
+            <style>
+                .license-found {
+                    background-color: #fff8e5;
+                }
+            </style>
+            <?php
+        }
+
+        /**
+         * Get license status for all managed plugins
+         */
+        private function get_license_status() {
+            $licenses = array();
+
+            // FluentCRM Campaign
+            $fluentcrm_license = get_option('__fluentcrm_campaign_license', array());
+            $licenses['fluentcampaign'] = array(
+                'name' => 'FluentCRM Campaign',
+                'has_license' => !empty($fluentcrm_license) && is_array($fluentcrm_license) && !empty($fluentcrm_license['license_key']),
+                'expires' => isset($fluentcrm_license['expires']) ? 'Expires: ' . $fluentcrm_license['expires'] : ''
+            );
+
+            // Fluent Community Pro
+            $fluent_license = get_option('__fluent_community_pro_license', array());
+            $licenses['fluentcommunity'] = array(
+                'name' => 'Fluent Community Pro',
+                'has_license' => !empty($fluent_license) && is_array($fluent_license) && !empty($fluent_license['license_key']),
+                'expires' => isset($fluent_license['expires']) ? 'Expires: ' . $fluent_license['expires'] : ''
+            );
+
+            // FluentBoards
+            $boards_license = get_option('__fbs_plugin_license', array());
+            $licenses['fluentboards'] = array(
+                'name' => 'FluentBoards Pro',
+                'has_license' => !empty($boards_license) && is_array($boards_license) && !empty($boards_license['license_key']),
+                'expires' => isset($boards_license['expires']) ? 'Expires: ' . $boards_license['expires'] : ''
+            );
+
+            // FluentSupport Pro
+            $support_license = get_option('__fluentsupport_pro_license', array());
+            $licenses['fluentsupport'] = array(
+                'name' => 'FluentSupport Pro',
+                'has_license' => !empty($support_license) && is_array($support_license) && !empty($support_license['license_key']),
+                'expires' => isset($support_license['expires']) ? 'Expires: ' . $support_license['expires'] : ''
+            );
+
+            // FluentBooking Pro
+            $booking_license = get_option('__fluent_booking_pro_license', array());
+            $licenses['fluentbooking'] = array(
+                'name' => 'FluentBooking Pro',
+                'has_license' => !empty($booking_license) && is_array($booking_license) && !empty($booking_license['license_key']),
+                'expires' => isset($booking_license['expires']) ? 'Expires: ' . $booking_license['expires'] : ''
+            );
+
+            // FluentForms Pro
+            $forms_license = get_option('__fluentform_pro_license', array());
+            $licenses['fluentforms'] = array(
+                'name' => 'FluentForms Pro',
+                'has_license' => !empty($forms_license) && is_array($forms_license) && !empty($forms_license['license_key']),
+                'expires' => isset($forms_license['expires']) ? 'Expires: ' . $forms_license['expires'] : ''
+            );
+
+            // AffiliateWP
+            $affwp_key = get_option('affwp_license_key', '');
+            $affwp_settings = get_option('affwp_settings', array());
+            $licenses['affiliatewp'] = array(
+                'name' => 'AffiliateWP',
+                'has_license' => !empty($affwp_key) || (!empty($affwp_settings['license_key'])),
+                'expires' => ''
+            );
+
+            // SearchWP
+            $searchwp_key = get_option('searchwp_license_key', '');
+            $licenses['searchwp'] = array(
+                'name' => 'SearchWP',
+                'has_license' => !empty($searchwp_key),
+                'expires' => ''
+            );
+
+            // ACF Pro
+            $acf_license = get_option('acf_pro_license', '');
+            $licenses['acf'] = array(
+                'name' => 'ACF Pro',
+                'has_license' => !empty($acf_license),
+                'expires' => ''
+            );
+
+            // Kadence
+            $kadence_blocks = get_option('stellarwp_uplink_license_key_kadence-blocks-pro', '');
+            $kadence_theme = get_option('stellarwp_uplink_license_key_kadence-theme-pro', '');
+            $licenses['kadence'] = array(
+                'name' => 'Kadence Pro',
+                'has_license' => !empty($kadence_blocks) || !empty($kadence_theme),
+                'expires' => ''
+            );
+
+            return $licenses;
+        }
+
+        /**
+         * AJAX handler to clear licenses
+         */
+        public function ajax_clear_licenses() {
+            check_ajax_referer('cwpk_clear_licenses', 'nonce');
+
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(array('message' => 'Insufficient permissions'));
+            }
+
+            $plugin = isset($_POST['plugin']) ? sanitize_text_field($_POST['plugin']) : '';
+
+            if (empty($plugin)) {
+                wp_send_json_error(array('message' => 'No plugin specified'));
+            }
+
+            if ($plugin === 'all') {
+                $this->clear_all_licenses();
+                wp_send_json_success(array('message' => 'All licenses cleared successfully'));
+            } else {
+                $result = $this->clear_single_license($plugin);
+                if ($result) {
+                    wp_send_json_success(array('message' => 'License cleared successfully'));
+                } else {
+                    wp_send_json_error(array('message' => 'Failed to clear license'));
+                }
+            }
+        }
+
+        /**
+         * Clear a single plugin's license
+         */
+        private function clear_single_license($plugin) {
+            switch ($plugin) {
+                case 'fluentcampaign':
+                    delete_option('__fluentcrm_campaign_license');
+                    delete_option('__fluentcrm_campaign_license_key');
+                    delete_option('__fluentcampaign_using_custom_key');
+                    return true;
+
+                case 'fluentcommunity':
+                    delete_option('__fluent_community_pro_license');
+                    delete_option('__fluent_community_pro_license_key');
+                    delete_option('__fluent_community_pro_license_verify');
+                    delete_option('__fluent_using_custom_key');
+                    delete_transient('fc_license_check_status');
+                    return true;
+
+                case 'fluentboards':
+                    delete_option('__fbs_plugin_license');
+                    delete_option('__fbs_plugin_license_key');
+                    delete_option('__fluentboards_using_custom_key');
+                    return true;
+
+                case 'fluentsupport':
+                    delete_option('__fluentsupport_pro_license');
+                    delete_option('__fluentsupport_pro_license_key');
+                    delete_option('__fluentsupport_using_custom_key');
+                    return true;
+
+                case 'fluentbooking':
+                    delete_option('__fluent_booking_pro_license');
+                    delete_option('__fluent_booking_pro_license_key');
+                    delete_option('__fluentbooking_using_custom_key');
+                    return true;
+
+                case 'fluentforms':
+                    delete_option('__fluentform_pro_license');
+                    delete_option('__fluentform_pro_license_key');
+                    delete_option('__fluentforms_using_custom_key');
+                    return true;
+
+                case 'affiliatewp':
+                    delete_option('affwp_license_key');
+                    $settings = get_option('affwp_settings', array());
+                    if (isset($settings['license_key'])) {
+                        unset($settings['license_key']);
+                    }
+                    if (isset($settings['license_status'])) {
+                        unset($settings['license_status']);
+                    }
+                    update_option('affwp_settings', $settings);
+                    delete_option('__affiliatewp_using_custom_key');
+                    delete_transient('affwp_license_check');
+                    return true;
+
+                case 'searchwp':
+                    delete_option('searchwp_license_key');
+                    delete_option('searchwp_license_status');
+                    delete_option('__searchwp_using_custom_key');
+                    return true;
+
+                case 'acf':
+                    delete_option('acf_pro_license');
+                    delete_option('acf_using_custom_key');
+                    return true;
+
+                case 'kadence':
+                    delete_option('stellarwp_uplink_license_key_kadence-blocks-pro');
+                    delete_option('stellarwp_uplink_license_key_kadence-theme-pro');
+                    delete_option('stellarwp_uplink_using_custom_key_kadence');
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        /**
+         * Clear all licenses
+         */
+        private function clear_all_licenses() {
+            $plugins = array(
+                'fluentcampaign',
+                'fluentcommunity',
+                'fluentboards',
+                'fluentsupport',
+                'fluentbooking',
+                'fluentforms',
+                'affiliatewp',
+                'searchwp',
+                'acf',
+                'kadence'
+            );
+
+            foreach ($plugins as $plugin) {
+                $this->clear_single_license($plugin);
             }
         }
     }
