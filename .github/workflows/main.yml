@@ -59,6 +59,15 @@ jobs:
         fi
         echo "Tag format is valid: ${{ env.NEW_VERSION }}"
 
+    - name: Fix file permissions before zipping
+      run: |
+        # Set proper Unix permissions so ZipArchive extracts correctly
+        # Directories: 755 (rwxr-xr-x)
+        # Files: 644 (rw-r--r--)
+        find . -type d -exec chmod 755 {} \;
+        find . -type f -exec chmod 644 {} \;
+        echo "Permissions fixed: dirs=755, files=644"
+
     - name: Create zip of entire project
       run: |
         zip -r cribops-wp-kit.zip . \
@@ -71,7 +80,8 @@ jobs:
           -x ".claude/*" \
           -x "CLAUDE.md"
         echo "ZIP created for version ${{ env.NEW_VERSION }}"
-        unzip -l cribops-wp-kit.zip | tail -20
+        # Verify permissions are stored in ZIP
+        unzip -Z cribops-wp-kit.zip | head -20
 
     - name: Check if the release already exists and get the upload URL
       id: check_release
