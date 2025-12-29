@@ -4,7 +4,7 @@
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
  * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.9.6
+ * Version:     1.9.7
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -21,6 +21,16 @@
 
 if (!defined('ABSPATH')) exit;
 
+/**
+ * CRITICAL: Force WordPress to use PclZip instead of ZipArchive
+ *
+ * GitHub ZIP files have external_attr=0 (zero Unix permissions).
+ * PHP's ZipArchive preserves these, creating files with broken permissions.
+ * PclZip ignores external attributes and uses umask-based defaults.
+ * This must run early, before any plugin updates are processed.
+ */
+add_filter('unzip_file_use_ziparchive', '__return_false');
+
 // Load Composer autoloader for AWS SDK (if vendor exists)
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
@@ -31,7 +41,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.9.6';
+        const VERSION = '1.9.7';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
