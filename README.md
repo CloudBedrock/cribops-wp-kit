@@ -96,7 +96,7 @@ cribops-wp-kit/
 │   ├── class-cwpk-license-loader.php # License key automation
 │   ├── class-cwpk-manager.php        # Plugin recipe manager
 │   ├── class-cwpk-pluginmanager.php  # Plugin management core
-│   └── class-cwpk-updater.php        # Self-hosted update system
+│   └── class-cwpk-github-updater.php # GitHub releases update system
 ├── cribops-wp-kit.php          # Main plugin file
 ├── wp-config-snippet.php       # Configuration template
 ├── API_REQUIREMENTS.md         # API documentation
