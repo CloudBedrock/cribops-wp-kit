@@ -212,7 +212,7 @@ class CWPKInstaller {
             <?php if (! $prime_mover_installed) : ?>
                 <button type="button" class="button button-primary" id="install_prime_mover">Install Prime Mover</button>
             <?php else : ?>
-                <button type="button" class="button button-primary" id="install_base_launchkit_package">Install Base LaunchKit Package</button>
+                <button type="button" class="button button-primary" id="install_base_launchkit_package">Install Base Package</button>
                 <button type="button" class="button button-primary" id="view_packages">View Packages</button>
             <?php endif; ?>
         </p>
@@ -332,7 +332,7 @@ class CWPKInstaller {
                     security: '<?php echo wp_create_nonce("get_prime_package_nonce"); ?>'
                 }, function(response) {
                     if (response.success) {
-                        button.text('Base LaunchKit Package Installed').prop('disabled', true);
+                        button.text('Base Package Installed').prop('disabled', true);
                     } else {
                         button.text('Installation Failed').prop('disabled', false);
                     }

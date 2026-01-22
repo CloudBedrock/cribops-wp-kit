@@ -405,11 +405,11 @@ class CWPKPluginManager {
      */
     public function render_debug_page() {
         if ( ! $this->user_has_access() ) {
-            echo '<div class="wrap"><h1>Access Denied</h1><p>Please log in to WPLaunchify with a valid subscription to view LaunchKit Debug info.</p></div>';
+            echo '<div class="wrap"><h1>Access Denied</h1><p>Please log in with a valid subscription to view debug info.</p></div>';
             return;
         }
         echo '<div class="wrap">';
-        echo '<h1>LaunchKit Debug</h1>';
+        echo '<h1>Debug</h1>';
         echo '<h2>Bundle Directory</h2>';
         echo '<p>Path: ' . esc_html( $this->update_dir ) . '</p>';
         echo '<p>Status: ' . ( is_dir( $this->update_dir ) ? 'Directory exists' : 'Directory missing' ) . '</p>';

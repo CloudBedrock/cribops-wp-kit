@@ -3,8 +3,8 @@
  * Plugin Name: CribOps WP Kit
  * Plugin URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * Short Description: WordPress site management and deployment toolkit for agencies.
- * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates. Fork of LaunchKit Pro v2.13.2.
- * Version:     1.9.9
+ * Description: Comprehensive WordPress plugin management, license handling, and rapid site deployment using Prime Mover templates.
+ * Version:     1.9.10
  * Author:      CribOps Development Team
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
@@ -41,7 +41,7 @@ if (!class_exists('CribOpsWPKit')) {
 
     class CribOpsWPKit {
 
-        const VERSION = '1.9.9';
+        const VERSION = '1.9.10';
 
         public function __construct() {
             register_activation_hook(__FILE__, array($this, 'check_and_delete_original_plugin'));
@@ -459,16 +459,6 @@ if (!class_exists('CribOpsWPKit')) {
                                 </div>
                             </div>
                         <?php break;
-                        case 'license': ?>
-                            <div class="cwpk-dashboard__content">
-                                <div class="cwpk-inner">
-                                    <?php
-                                    $license = new CWPKLicenseKeyAutoloader();
-                                    $license->license_key_autoloader_page();
-                                    ?>
-                                </div>
-                            </div>
-                        <?php break;
                         case 'cdn': ?>
                             <div class="cwpk-dashboard__content">
                                 <div class="cwpk-inner">
@@ -552,32 +542,10 @@ if (!class_exists('CribOpsWPKit')) {
                                         <a href="?page=cwpk&tab=manager" class="nav-tab <?php if ($tab === 'manager'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Recipe Manager', 'cwpk'); ?></a><span class="nav-description">Create & manage plugin recipes.</span>
                                         <?php $logged_in = get_transient('lk_logged_in'); ?>
                                         <?php if ($logged_in) : ?>
-                                        <a href="?page=cwpk&tab=account" class="nav-tab <?php if ($tab === 'account'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Account', 'cwpk'); ?></a><span class="nav-description">Create your WPLaunchify access account.</span>
-                                        <a href="?page=cwpk&tab=license" class="nav-tab <?php if ($tab === 'license'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('License', 'cwpk'); ?></a><span class="nav-description">Manage software licenses.</span>
                                         <a href="?page=cwpk&tab=packages" class="nav-tab <?php if ($tab === 'packages'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Packages', 'cwpk'); ?></a><span class="nav-description">Create or import full site templates.</span>
                                         <a href="?page=launchkit-debug" class="nav-tab <?php if ($tab === 'debug'): ?>nav-tab-active<?php endif; ?>"><?php esc_html_e('Debug', 'cwpk'); ?></a><span class="nav-description">Debug CribOps WP-Kit Software Bundle</span>
                                         <?php endif; ?>
                                     </nav>
-                                </div>
-                            </div>
-                        <?php break;
-                        case 'account': ?>
-                            <div class="cwpk-dashboard__content">
-                                <div class="cwpk-inner">
-                                    <h1><?php esc_html_e('Account', 'cwpk'); ?></h1>
-                                    <br/>
-                                    <div class="cwpk-settings-container">
-                                        <span class="dashicons dashicons-update"></span>
-                                        <h2>Get Your Pro Account</h2>
-                                        <p> Available with concierge support from WPLaunchify.</p>
-                                        <p><a href="https://cribops.com/pricing" class="cwpk-button cwpk-featured" target="_blank">Upgrade To Pro Now!</a></p>
-                                    </div>
-                                    <div class="cwpk-settings-container">
-                                        <h2>Subscribe To The WPLaunchClub Newsletter</h2>
-                                        <p>WordPress Tutorials For Business Owners<br/>
-                                        Membership, Marketing Automation, Online Courses, eCommerce & BuddyBoss</p>
-                                        <a href="https://cribops.com/newsletter" class="cwpk-button cwpk-featured" target="_blank">Subscribe Now (It's Free)</a>
-                                    </div>
                                 </div>
                             </div>
                         <?php break;
