@@ -87,6 +87,7 @@ class CWPK_CDN {
         add_action('wp_ajax_cwpk_cdn_sync_status', array($this, 'ajax_sync_status'));
         add_action('wp_ajax_cwpk_cdn_sync_batch', array($this, 'ajax_sync_batch'));
         add_action('wp_ajax_cwpk_cdn_test_connection', array($this, 'ajax_test_connection'));
+        add_action('wp_ajax_cwpk_cdn_retry_failed', array($this, 'ajax_retry_failed'));
 
         // Create tracking table on init
         add_action('admin_init', array($this, 'maybe_create_table'));
@@ -318,6 +319,9 @@ class CWPK_CDN {
         $base_file = get_attached_file($attachment_id);
 
         if (!$base_file || !file_exists($base_file)) {
+            // Record the failure so batch sync skips this attachment instead of
+            // re-selecting it forever (which stalled the progress bar).
+            $this->mark_sync_error($attachment_id, 'File not found on disk: ' . ($base_file ?: '(no file)'));
             return false;
         }
 
@@ -355,6 +359,8 @@ class CWPK_CDN {
 
         global $wpdb;
         $success = true;
+        $uploaded = 0;
+        $last_error = '';
 
         foreach ($files_to_upload as $file) {
             try {
@@ -377,18 +383,68 @@ class CWPK_CDN {
                     'region'        => $config['region'],
                     'file_hash'     => md5_file($file['local_path']),
                 ), array('%d', '%s', '%s', '%s', '%s', '%s'));
+                $uploaded++;
 
-            } catch (\Aws\Exception\AwsException $e) {
-                error_log('CWPK CDN: Failed to upload ' . $file['relative_path'] . ' - ' . $e->getMessage());
+            } catch (\Exception $e) {
+                // AwsException extends RuntimeException; the SDK can also throw
+                // plain RuntimeExceptions (e.g. unreadable SourceFile).
+                $last_error = $e->getMessage();
+                error_log('CWPK CDN: Failed to upload ' . $file['relative_path'] . ' - ' . $last_error);
                 $success = false;
             }
         }
 
         if ($success) {
             update_post_meta($attachment_id, '_cwpk_cdn_synced', current_time('mysql'));
+            delete_post_meta($attachment_id, '_cwpk_cdn_sync_error');
+        } else {
+            // Any failure (nothing uploaded, or only some sizes) is recorded so
+            // the batch query stops re-selecting this attachment and the status
+            // counts it as Failed rather than Synced. "Retry Failed" clears the
+            // mark and re-uploads the whole attachment.
+            $this->mark_sync_error(
+                $attachment_id,
+                ($uploaded > 0 ? 'Partial upload (' . $uploaded . '/' . count($files_to_upload) . ' files): ' : '') . ($last_error ?: 'Upload failed')
+            );
         }
 
         return $success;
+    }
+
+    /**
+     * Record a sync failure for an attachment so batch processing skips it
+     *
+     * @param int $attachment_id Attachment post ID
+     * @param string $message Failure reason
+     */
+    private function mark_sync_error($attachment_id, $message) {
+        update_post_meta($attachment_id, '_cwpk_cdn_sync_error', array(
+            'message' => $message,
+            'time'    => current_time('mysql'),
+        ));
+    }
+
+    /**
+     * Clear recorded sync failures so those attachments are retried
+     *
+     * @return int Number of attachments reset
+     */
+    public function clear_sync_errors() {
+        global $wpdb;
+
+        $post_ids = $wpdb->get_col(
+            "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_cwpk_cdn_sync_error'"
+        );
+
+        foreach ($post_ids as $post_id) {
+            // Drop any partial tracking rows so the attachment is re-selected
+            // and re-uploaded in full; delete_post_meta keeps the meta cache
+            // coherent (a raw DELETE would not).
+            $wpdb->delete($this->table_name, array('attachment_id' => (int) $post_id), array('%d'));
+            delete_post_meta((int) $post_id, '_cwpk_cdn_sync_error');
+        }
+
+        return count($post_ids);
     }
 
     /**
@@ -554,22 +610,46 @@ class CWPK_CDN {
             "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'"
         );
 
-        // Synced attachments (distinct)
+        // Synced image attachments: tracked in S3 and not flagged as failed.
+        // Restricted to images so this never exceeds total_attachments
+        // (handle_upload syncs every mime type on upload).
         $synced_attachments = (int) $wpdb->get_var(
-            "SELECT COUNT(DISTINCT attachment_id) FROM {$this->table_name}"
+            "SELECT COUNT(DISTINCT c.attachment_id)
+            FROM {$this->table_name} c
+            INNER JOIN {$wpdb->posts} p ON p.ID = c.attachment_id
+            LEFT JOIN {$wpdb->postmeta} e ON e.post_id = c.attachment_id AND e.meta_key = '_cwpk_cdn_sync_error'
+            WHERE p.post_type = 'attachment'
+            AND p.post_mime_type LIKE 'image/%'
+            AND e.meta_id IS NULL"
         );
 
-        // Total files in S3 (including sizes)
+        // Total files uploaded (original + every generated size, so this is
+        // normally several times the attachment count)
         $total_files = (int) $wpdb->get_var(
             "SELECT COUNT(*) FROM {$this->table_name}"
         );
 
+        // Image attachments flagged as failed (fully or partially). Together
+        // with synced and pending this partitions total_attachments exactly.
+        $failed_attachments = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT pm.post_id)
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+            WHERE pm.meta_key = '_cwpk_cdn_sync_error'
+            AND p.post_type = 'attachment'
+            AND p.post_mime_type LIKE 'image/%'"
+        );
+
+        $pending = max(0, $total_attachments - $synced_attachments - $failed_attachments);
+        $processed = $total_attachments - $pending;
+
         return array(
             'total_attachments'  => $total_attachments,
             'synced_attachments' => $synced_attachments,
+            'failed_attachments' => $failed_attachments,
             'total_files_in_s3'  => $total_files,
-            'pending'            => max(0, $total_attachments - $synced_attachments),
-            'percent_complete'   => $total_attachments > 0 ? round(($synced_attachments / $total_attachments) * 100) : 100,
+            'pending'            => $pending,
+            'percent_complete'   => $total_attachments > 0 ? round(($processed / $total_attachments) * 100) : 100,
         );
     }
 
@@ -583,9 +663,12 @@ class CWPK_CDN {
             "SELECT p.ID
             FROM {$wpdb->posts} p
             LEFT JOIN {$this->table_name} c ON p.ID = c.attachment_id
+            LEFT JOIN {$wpdb->postmeta} e ON e.post_id = p.ID AND e.meta_key = '_cwpk_cdn_sync_error'
             WHERE p.post_type = 'attachment'
             AND p.post_mime_type LIKE 'image/%%'
             AND c.attachment_id IS NULL
+            AND e.meta_id IS NULL
+            ORDER BY p.ID ASC
             LIMIT %d",
             $limit
         );
@@ -896,7 +979,11 @@ class CWPK_CDN {
             wp_send_json_error('Unauthorized');
         }
 
-        $batch_size = isset($_POST['batch_size']) ? intval($_POST['batch_size']) : 5;
+        if (!$this->get_s3_client()) {
+            wp_send_json_error(__('S3 client is not available. Check the AWS SDK and configuration.', 'cwpk'));
+        }
+
+        $batch_size = isset($_POST['batch_size']) ? max(1, min(50, intval($_POST['batch_size']))) : 5;
         $attachment_ids = $this->get_unsynced_attachment_ids($batch_size);
 
         $results = array(
@@ -918,14 +1005,35 @@ class CWPK_CDN {
             } catch (Exception $e) {
                 $results['failed']++;
                 error_log('CWPK CDN: Batch sync failed for attachment ' . $attachment_id . ' - ' . $e->getMessage());
+                // Record it so the next batch does not re-select the same attachment.
+                $this->mark_sync_error($attachment_id, $e->getMessage());
             }
         }
 
         $status = $this->get_sync_status();
         $results['remaining'] = $status['pending'];
         $results['percent_complete'] = $status['percent_complete'];
+        $results['status'] = $status;
 
         wp_send_json_success($results);
+    }
+
+    /**
+     * AJAX: Clear recorded sync failures so they are retried on the next sync
+     */
+    public function ajax_retry_failed() {
+        check_ajax_referer('cwpk_cdn_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+        }
+
+        $cleared = $this->clear_sync_errors();
+
+        wp_send_json_success(array(
+            'cleared' => $cleared,
+            'status'  => $this->get_sync_status(),
+        ));
     }
 
     // =========================================================================
@@ -1042,10 +1150,15 @@ class CWPK_CDN {
                         <span class="cwpk-cdn-stat-label"><?php esc_html_e('Pending', 'cwpk'); ?></span>
                     </div>
                     <div class="cwpk-cdn-stat">
+                        <span class="cwpk-cdn-stat-value <?php echo $status['failed_attachments'] > 0 ? 'cwpk-cdn-status-error' : ''; ?>" id="cwpk-cdn-failed"><?php echo esc_html($status['failed_attachments']); ?></span>
+                        <span class="cwpk-cdn-stat-label"><?php esc_html_e('Failed', 'cwpk'); ?></span>
+                    </div>
+                    <div class="cwpk-cdn-stat">
                         <span class="cwpk-cdn-stat-value" id="cwpk-cdn-files"><?php echo esc_html($status['total_files_in_s3']); ?></span>
-                        <span class="cwpk-cdn-stat-label"><?php esc_html_e('Files in S3', 'cwpk'); ?></span>
+                        <span class="cwpk-cdn-stat-label"><?php esc_html_e('Files Uploaded (incl. sizes)', 'cwpk'); ?></span>
                     </div>
                 </div>
+                <p class="description"><?php esc_html_e('Total Images = Synced + Pending + Failed. "Files Uploaded" counts the original plus every generated thumbnail size, so it is normally several times the image count. Failed images are skipped until you click "Retry Failed"; see the PHP error log for the reason.', 'cwpk'); ?></p>
 
                 <div class="cwpk-cdn-progress-container" style="display: none;">
                     <div class="cwpk-cdn-progress-bar">
@@ -1055,16 +1168,16 @@ class CWPK_CDN {
                 </div>
 
                 <p class="cwpk-cdn-sync-actions">
-                    <?php if ($status['pending'] > 0): ?>
-                        <button type="button" class="button button-primary" id="cwpk-cdn-sync-start">
-                            <?php esc_html_e('Sync Existing Media', 'cwpk'); ?>
-                        </button>
-                        <button type="button" class="button" id="cwpk-cdn-sync-stop" style="display: none;">
-                            <?php esc_html_e('Stop', 'cwpk'); ?>
-                        </button>
-                    <?php else: ?>
-                        <span class="cwpk-cdn-status-ok"><?php esc_html_e('All media is synced!', 'cwpk'); ?></span>
-                    <?php endif; ?>
+                    <button type="button" class="button button-primary" id="cwpk-cdn-sync-start" <?php echo $status['pending'] > 0 ? '' : 'style="display: none;"'; ?>>
+                        <?php esc_html_e('Sync Existing Media', 'cwpk'); ?>
+                    </button>
+                    <button type="button" class="button" id="cwpk-cdn-sync-stop" style="display: none;">
+                        <?php esc_html_e('Stop', 'cwpk'); ?>
+                    </button>
+                    <button type="button" class="button" id="cwpk-cdn-retry-failed" <?php echo $status['failed_attachments'] > 0 ? '' : 'style="display: none;"'; ?>>
+                        <?php esc_html_e('Retry Failed', 'cwpk'); ?>
+                    </button>
+                    <span class="cwpk-cdn-status-ok" id="cwpk-cdn-all-synced" <?php echo ($status['pending'] === 0 && $status['failed_attachments'] === 0) ? '' : 'style="display: none;"'; ?>><?php esc_html_e('All media is synced!', 'cwpk'); ?></span>
                 </p>
                 <p id="cwpk-cdn-sync-status"></p>
             </div>
@@ -1138,7 +1251,7 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
                     var $btn = $(this);
                     var $result = $('#cwpk-cdn-test-result');
 
-                    $btn.prop('disabled', true).text('<?php esc_html_e('Testing...', 'cwpk'); ?>');
+                    $btn.prop('disabled', true).text('<?php echo esc_js(__('Testing...', 'cwpk')); ?>');
                     $result.text('');
 
                     $.post(ajaxurl, {
@@ -1146,14 +1259,14 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
                         nonce: nonce
                     }, function(response) {
                         if (response.success) {
-                            $result.html('<span class="cwpk-cdn-status-ok">' + response.data.message + '</span>');
+                            $result.empty().append($('<span class="cwpk-cdn-status-ok"/>').text(response.data.message));
                         } else {
-                            $result.html('<span class="cwpk-cdn-status-error">' + response.data + '</span>');
+                            $result.empty().append($('<span class="cwpk-cdn-status-error"/>').text(response.data));
                         }
                     }).fail(function() {
-                        $result.html('<span class="cwpk-cdn-status-error"><?php esc_html_e('Request failed', 'cwpk'); ?></span>');
+                        $result.html('<span class="cwpk-cdn-status-error"><?php echo esc_js(__('Request failed', 'cwpk')); ?></span>');
                     }).always(function() {
-                        $btn.prop('disabled', false).text('<?php esc_html_e('Test Connection', 'cwpk'); ?>');
+                        $btn.prop('disabled', false).text('<?php echo esc_js(__('Test Connection', 'cwpk')); ?>');
                     });
                 });
 
@@ -1171,8 +1284,54 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
                     syncRunning = false;
                     $(this).hide();
                     $('#cwpk-cdn-sync-start').show();
-                    $('#cwpk-cdn-sync-status').text('<?php esc_html_e('Sync stopped', 'cwpk'); ?>');
+                    $('#cwpk-cdn-sync-status').text('<?php echo esc_js(__('Sync stopped', 'cwpk')); ?>');
                 });
+
+                // Retry failed: clear recorded errors so those images are picked up again
+                $('#cwpk-cdn-retry-failed').on('click', function() {
+                    var $btn = $(this);
+                    $btn.prop('disabled', true);
+
+                    $.post(ajaxurl, {
+                        action: 'cwpk_cdn_retry_failed',
+                        nonce: nonce
+                    }, function(response) {
+                        if (response.success) {
+                            updateStats(response.data.status);
+                            $('#cwpk-cdn-sync-status').text(response.data.cleared + ' <?php echo esc_js(__('image(s) queued for retry. Click "Sync Existing Media" to run.', 'cwpk')); ?>');
+                        } else {
+                            $('#cwpk-cdn-sync-status').empty().append($('<span class="cwpk-cdn-status-error"/>').text(response.data));
+                        }
+                    }).fail(function() {
+                        $('#cwpk-cdn-sync-status').html('<span class="cwpk-cdn-status-error"><?php echo esc_js(__('Request failed', 'cwpk')); ?></span>');
+                    }).always(function() {
+                        $btn.prop('disabled', false);
+                    });
+                });
+
+                // Render server-side counts so the numbers always reconcile
+                function updateStats(status) {
+                    $('#cwpk-cdn-total').text(status.total_attachments);
+                    $('#cwpk-cdn-synced').text(status.synced_attachments);
+                    $('#cwpk-cdn-pending').text(status.pending);
+                    $('#cwpk-cdn-failed').text(status.failed_attachments)
+                        .toggleClass('cwpk-cdn-status-error', status.failed_attachments > 0);
+                    $('#cwpk-cdn-files').text(status.total_files_in_s3);
+                    $('#cwpk-cdn-progress-fill').css('width', status.percent_complete + '%');
+                    $('#cwpk-cdn-progress-text').text(status.percent_complete + '%');
+
+                    $('#cwpk-cdn-retry-failed').toggle(status.failed_attachments > 0);
+                    if (!syncRunning) {
+                        $('#cwpk-cdn-sync-start').toggle(status.pending > 0);
+                        $('#cwpk-cdn-all-synced').toggle(status.pending === 0 && status.failed_attachments === 0);
+                    }
+                }
+
+                function finishSync(message) {
+                    syncRunning = false;
+                    $('#cwpk-cdn-sync-stop').hide();
+                    $('#cwpk-cdn-sync-status').text(message);
+                }
 
                 function processBatch() {
                     if (!syncRunning) return;
@@ -1184,35 +1343,38 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
                     }, function(response) {
                         if (response.success) {
                             var data = response.data;
-                            $('#cwpk-cdn-synced').text(parseInt($('#cwpk-cdn-synced').text()) + data.success);
-                            $('#cwpk-cdn-pending').text(data.remaining);
-                            $('#cwpk-cdn-progress-fill').css('width', data.percent_complete + '%');
-                            $('#cwpk-cdn-progress-text').text(data.percent_complete + '%');
-                            $('#cwpk-cdn-sync-status').text('<?php esc_html_e('Processed', 'cwpk'); ?> ' + data.processed + ' <?php esc_html_e('files', 'cwpk'); ?>...');
+                            var status = data.status;
+                            if (!syncRunning) {
+                                // Stop was pressed while this batch was in flight:
+                                // refresh the counts but keep the "Sync stopped" message.
+                                updateStats(status);
+                                return;
+                            }
 
-                            if (data.remaining > 0 && syncRunning) {
+                            $('#cwpk-cdn-sync-status').text('<?php echo esc_js(__('Processed', 'cwpk')); ?> ' + data.processed + ' <?php echo esc_js(__('images', 'cwpk')); ?> (' + data.success + ' <?php echo esc_js(__('ok', 'cwpk')); ?>, ' + data.failed + ' <?php echo esc_js(__('failed', 'cwpk')); ?>)...');
+
+                            if (data.processed > 0 && data.remaining > 0) {
+                                updateStats(status);
                                 setTimeout(processBatch, 500);
                             } else {
-                                syncRunning = false;
-                                $('#cwpk-cdn-sync-stop').hide();
-                                $('#cwpk-cdn-sync-status').text('<?php esc_html_e('Sync complete!', 'cwpk'); ?>');
-                                if (data.remaining === 0) {
-                                    $('#cwpk-cdn-sync-start').replaceWith('<span class="cwpk-cdn-status-ok"><?php esc_html_e('All media is synced!', 'cwpk'); ?></span>');
-                                } else {
-                                    $('#cwpk-cdn-sync-start').show();
-                                }
+                                // Either nothing is left, or nothing we can process is
+                                // left (everything remaining is Failed) - never spin forever.
+                                finishSync(status.failed_attachments > 0
+                                    ? '<?php echo esc_js(__('Sync finished with failures. See the Failed count and PHP error log.', 'cwpk')); ?>'
+                                    : '<?php echo esc_js(__('Sync complete!', 'cwpk')); ?>');
+                                updateStats(status);
                             }
                         } else {
                             syncRunning = false;
                             $('#cwpk-cdn-sync-stop').hide();
                             $('#cwpk-cdn-sync-start').show();
-                            $('#cwpk-cdn-sync-status').html('<span class="cwpk-cdn-status-error">' + response.data + '</span>');
+                            $('#cwpk-cdn-sync-status').empty().append($('<span class="cwpk-cdn-status-error"/>').text(response.data));
                         }
                     }).fail(function() {
                         syncRunning = false;
                         $('#cwpk-cdn-sync-stop').hide();
                         $('#cwpk-cdn-sync-start').show();
-                        $('#cwpk-cdn-sync-status').html('<span class="cwpk-cdn-status-error"><?php esc_html_e('Request failed', 'cwpk'); ?></span>');
+                        $('#cwpk-cdn-sync-status').html('<span class="cwpk-cdn-status-error"><?php echo esc_js(__('Request failed', 'cwpk')); ?></span>');
                     });
                 }
             });
