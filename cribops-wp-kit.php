@@ -32,7 +32,9 @@ if (!defined('ABSPATH')) exit;
 add_filter('unzip_file_use_ziparchive', '__return_false');
 
 // Load Composer autoloader for AWS SDK (if vendor exists)
-if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+// The vendored AWS SDK needs PHP 8.2; on older PHP Composer's platform check
+// would fatal on every request, so skip it and the CDN feature stays off
+if (PHP_VERSION_ID >= 80200 && file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
 
