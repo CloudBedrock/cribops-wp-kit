@@ -3,8 +3,10 @@
     "description": "WordPress site management and deployment toolkit with CDN integration",
     "type": "wordpress-plugin",
     "require": {
-        "php": ">=7.4",
-        "aws/aws-sdk-php": "^3.0"
+        "php": ">=8.2",
+        "aws/aws-sdk-php": "^3.371.4",
+        "guzzlehttp/guzzle": "^8.0.1",
+        "mtdowling/jmespath.php": "^2.9.1"
     },
     "autoload": {
         "psr-4": {
@@ -13,6 +15,9 @@
     },
     "config": {
         "optimize-autoloader": true,
-        "preferred-install": "dist"
+        "preferred-install": "dist",
+        "platform": {
+            "php": "8.2"
+        }
     }
 }

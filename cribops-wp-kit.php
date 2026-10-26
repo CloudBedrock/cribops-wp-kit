@@ -9,7 +9,7 @@
  * Author URI:  https://cribops.com
  * Text Domain: cwpk
  * Tested up to: 6.7.1
- * Requires PHP: 7.4
+ * Requires PHP: 8.2
  * Update URI:  https://github.com/CloudBedrock/cribops-wp-kit
  * License:     GPLv2
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
