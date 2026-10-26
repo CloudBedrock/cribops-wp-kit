@@ -104,7 +104,7 @@ class CWPKGitHubUpdater {
                 ),
                 'tested' => '6.7.1',
                 'requires' => '5.8',
-                'requires_php' => '7.4'
+                'requires_php' => '8.2'
             );
 
             $transient->response[$this->plugin_basename] = (object) $plugin_data;
@@ -150,7 +150,7 @@ class CWPKGitHubUpdater {
             ),
             'tested' => '6.7.1',
             'requires' => '5.8',
-            'requires_php' => '7.4',
+            'requires_php' => '8.2',
             'last_updated' => $github_data->published_at
         );
 
